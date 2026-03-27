@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PLAYBOOK_SECTIONS, type PlaybookEntry, type PlaybookSection } from '@/lib/types'
@@ -20,6 +20,14 @@ const blankForm = { section: PLAYBOOK_SECTIONS[0] as PlaybookSection, title: '',
 interface Campaign { id: string; name: string }
 
 export default function PlaybookPage() {
+  return (
+    <Suspense fallback={<p className="text-gray-400 text-sm">Loading...</p>}>
+      <PlaybookContent />
+    </Suspense>
+  )
+}
+
+function PlaybookContent() {
   const searchParams = useSearchParams()
   const [entries, setEntries] = useState<PlaybookEntry[]>([])
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
