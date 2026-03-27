@@ -131,10 +131,24 @@ export interface WeeklyReport {
   created_at: string
 }
 
+export const PLAYBOOK_SECTIONS = [
+  'ICP & Segmentation',
+  'Personas',
+  'Pain Mapping',
+  'List Building',
+  'Observation & Signals',
+  'Messaging Frameworks',
+  'Sequences & Cadence',
+  'Performance Benchmarks',
+] as const
+
+export type PlaybookSection = typeof PLAYBOOK_SECTIONS[number]
+
 export interface PlaybookEntry {
   id: string
   campaign_id: string | null
-  type: 'hook' | 'sequence' | 'segment' | 'lesson' | null
+  type: string | null
+  section: PlaybookSection | null
   title: string
   content: string | null
   created_at: string

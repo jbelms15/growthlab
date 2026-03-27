@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { PLAYBOOK_SECTIONS, type PlaybookSection } from '@/lib/types'
 
 type ReviewStep = 'data' | 'input' | 'review'
 
@@ -82,6 +83,8 @@ export default function FridayReviewPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [existingId, setExistingId] = useState<string | null>(null)
+  const [pushing, setPushing] = useState(false)
+  const [pushed, setPushed] = useState(false)
 
   const weekStart = getWeekStart()
 
@@ -182,6 +185,49 @@ export default function FridayReviewPage() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  const pushToPlaybook = async () => {
+    if (!review.playbook_learnings.trim()) return
+    setPushing(true)
+
+    // Parse blocks split by **Learning:**
+    const blocks = review.playbook_learnings
+      .split(/\*\*Learning:\*\*/i)
+      .map(b => b.trim())
+      .filter(Boolean)
+
+    const entries = blocks.map(block => {
+      const learningMatch = block.match(/^([\s\S]*?)(?:\*\*Section:\*\*|$)/i)
+      const sectionMatch = block.match(/\*\*Section:\*\*\s*([^\n*]+)/i)
+      const actionMatch = block.match(/\*\*Action:\*\*\s*([\s\S]*?)$/i)
+
+      const learning = learningMatch ? learningMatch[1].trim() : block.trim()
+      const sectionRaw = sectionMatch ? sectionMatch[1].trim() : ''
+      const action = actionMatch ? actionMatch[1].trim() : ''
+
+      // Match to known section or default to Performance Benchmarks
+      const section: PlaybookSection =
+        (PLAYBOOK_SECTIONS.find(s =>
+          s.toLowerCase() === sectionRaw.toLowerCase() ||
+          sectionRaw.toLowerCase().includes(s.toLowerCase().split(' ')[0].toLowerCase())
+        ) as PlaybookSection) || 'Performance Benchmarks'
+
+      return {
+        campaign_id: id,
+        section,
+        title: learning.split('\n')[0].replace(/^[-•]\s*/, '').slice(0, 200) || 'Learning',
+        content: [learning, action ? `Action: ${action}` : ''].filter(Boolean).join('\n\n') || null,
+      }
+    })
+
+    if (entries.length > 0) {
+      await supabase.from('playbook_entries').insert(entries)
+    }
+
+    setPushing(false)
+    setPushed(true)
+    setTimeout(() => setPushed(false), 3000)
   }
 
   const replyRate =
@@ -380,13 +426,20 @@ export default function FridayReviewPage() {
             </div>
           ))}
 
-          <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-3 pt-2 border-t border-gray-100 flex-wrap">
             <button
               onClick={save}
               disabled={saving}
               className="bg-gray-900 text-white text-sm px-5 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50"
             >
               {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Review'}
+            </button>
+            <button
+              onClick={pushToPlaybook}
+              disabled={pushing || !review.playbook_learnings.trim()}
+              className="bg-indigo-600 text-white text-sm px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-40"
+            >
+              {pushing ? 'Pushing...' : pushed ? '✓ Added to Playbook' : '→ Push to Playbook'}
             </button>
             <button
               onClick={() => { setStep('input'); setStreamText('') }}
