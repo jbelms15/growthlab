@@ -274,7 +274,12 @@ function CompanyRow({
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-gray-900 text-sm">{company.name}</span>
+            <Link
+              href={`/campaigns/${campaignId}/targets/${company.id}`}
+              className="font-medium text-gray-900 text-sm hover:text-indigo-600"
+            >
+              {company.name}
+            </Link>
             {segment && (
               <span className="text-xs text-gray-400">{segment.name}</span>
             )}

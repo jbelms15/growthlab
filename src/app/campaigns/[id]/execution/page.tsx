@@ -79,6 +79,11 @@ export default function ExecutionPage() {
 
   const companyName = (cid: string) => companies.find(c => c.id === cid)?.name || '—'
 
+  const deleteTp = async (tpId: string) => {
+    await supabase.from('touchpoints').delete().eq('id', tpId)
+    setTouchpoints(prev => prev.filter(t => t.id !== tpId))
+  }
+
   const log = async () => {
     if (!form.company_id) return
     setSubmitting(true)
@@ -314,6 +319,12 @@ export default function ExecutionPage() {
               >
                 {tp.status === 'no_reply' ? 'no reply' : tp.status}
               </span>
+              <button
+                onClick={() => deleteTp(tp.id)}
+                className="text-gray-300 hover:text-red-400 text-xs shrink-0 transition-colors"
+              >
+                ✕
+              </button>
             </div>
           ))}
         </div>

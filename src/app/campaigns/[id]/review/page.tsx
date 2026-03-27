@@ -85,6 +85,8 @@ export default function FridayReviewPage() {
   const [existingId, setExistingId] = useState<string | null>(null)
   const [pushing, setPushing] = useState(false)
   const [pushed, setPushed] = useState(false)
+  const [pastReviews, setPastReviews] = useState<any[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
   const weekStart = getWeekStart()
 
@@ -98,6 +100,14 @@ export default function FridayReviewPage() {
         supabase.from('touchpoints').select('status').eq('campaign_id', id).gte('date', weekStart).lte('date', weekEnd),
         supabase.from('companies').select('*', { count: 'exact', head: true }).eq('campaign_id', id).gte('added_at', weekStart + 'T00:00:00'),
       ])
+
+      const pastRes = await supabase
+        .from('weekly_reports')
+        .select('*')
+        .eq('campaign_id', id)
+        .neq('week_start', weekStart)
+        .order('week_start', { ascending: false })
+      setPastReviews(pastRes.data || [])
 
       if (planRes.data) setWeekPlan(planRes.data)
 
@@ -454,6 +464,80 @@ export default function FridayReviewPage() {
               → Monday Plan
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* Past reviews */}
+      {pastReviews.length > 0 && (
+        <div className="mt-10 border-t border-gray-100 pt-6">
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-4"
+          >
+            {showHistory ? '▾' : '▸'} Past reviews ({pastReviews.length})
+          </button>
+          {showHistory && (
+            <div className="space-y-3">
+              {pastReviews.map(r => (
+                <PastReviewCard key={r.id} review={r} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PastReviewCard({ review }: { review: any }) {
+  const [expanded, setExpanded] = useState(false)
+  const label = new Date(review.week_start + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  })
+  const replyRate = review.companies_contacted > 0
+    ? Math.round(((review.replies + review.meetings) / review.companies_contacted) * 100)
+    : 0
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+      >
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-medium text-gray-700">Week of {label}</span>
+          <span className="text-xs text-gray-400">
+            {review.companies_contacted} touches · {review.replies} replies · {review.meetings} meetings · {replyRate}% reply rate
+          </span>
+        </div>
+        <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-gray-100 px-4 py-3 space-y-3 text-sm">
+          {review.performance_analysis && (
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Performance</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{review.performance_analysis}</p>
+            </div>
+          )}
+          {review.key_insights && (
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Key insights</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{review.key_insights}</p>
+            </div>
+          )}
+          {review.recommendations && (
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Recommendations</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{review.recommendations}</p>
+            </div>
+          )}
+          {review.playbook_learnings && (
+            <div>
+              <p className="text-xs text-indigo-500 mb-0.5">Playbook learnings</p>
+              <p className="text-gray-700 whitespace-pre-wrap">{review.playbook_learnings}</p>
+            </div>
+          )}
         </div>
       )}
     </div>

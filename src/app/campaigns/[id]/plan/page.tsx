@@ -77,6 +77,8 @@ export default function MondayPlanPage() {
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [pastPlans, setPastPlans] = useState<any[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
   const weekStart = getWeekStart()
 
@@ -87,6 +89,14 @@ export default function MondayPlanPage() {
         supabase.from('weekly_plans').select('*').eq('campaign_id', id).eq('week_start', weekStart).maybeSingle(),
         supabase.from('weekly_reports').select('recommendations, key_insights, week_start').eq('campaign_id', id).order('week_start', { ascending: false }).limit(1).maybeSingle(),
       ])
+      const pastRes = await supabase
+        .from('weekly_plans')
+        .select('*')
+        .eq('campaign_id', id)
+        .neq('week_start', weekStart)
+        .order('week_start', { ascending: false })
+      setPastPlans(pastRes.data || [])
+
       if (campRes.data) setCampaign(campRes.data)
       if (reviewRes.data) setLastReview(reviewRes.data)
       if (planRes.data) {
@@ -297,6 +307,81 @@ export default function MondayPlanPage() {
               Friday Review →
             </Link>
           </div>
+        </div>
+      )}
+
+      {/* Past plans */}
+      {pastPlans.length > 0 && (
+        <div className="mt-10 border-t border-gray-100 pt-6">
+          <button
+            onClick={() => setShowHistory(v => !v)}
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 mb-4"
+          >
+            {showHistory ? '▾' : '▸'} Past plans ({pastPlans.length})
+          </button>
+          {showHistory && (
+            <div className="space-y-3">
+              {pastPlans.map(p => (
+                <PastPlanCard key={p.id} plan={p} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PastPlanCard({ plan }: { plan: any }) {
+  const [expanded, setExpanded] = useState(false)
+  const label = new Date(plan.week_start + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  })
+  const priorities = plan.priorities
+    ? plan.priorities.split('\n').map((l: string) => l.replace(/^\d+\.\s*/, '').trim()).filter(Boolean).slice(0, 3)
+    : []
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
+      >
+        <span className="text-sm font-medium text-gray-700">Week of {label}</span>
+        <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>
+      </button>
+      {expanded && (
+        <div className="border-t border-gray-100 px-4 py-3 space-y-3 text-sm">
+          {priorities.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 mb-1">Priorities</p>
+              <ol className="space-y-0.5">
+                {priorities.map((p: string, i: number) => (
+                  <li key={i} className="flex gap-2 text-gray-700">
+                    <span className="text-gray-300">{i + 1}.</span> {p}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          {plan.target_segment && (
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Focus segment</p>
+              <p className="text-gray-700">{plan.target_segment}</p>
+            </div>
+          )}
+          {plan.experiment && (
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Experiment</p>
+              <p className="text-gray-700">{plan.experiment}</p>
+            </div>
+          )}
+          {plan.expected_outcomes && (
+            <div>
+              <p className="text-xs text-gray-400 mb-0.5">Expected outcomes</p>
+              <p className="text-gray-700">{plan.expected_outcomes}</p>
+            </div>
+          )}
         </div>
       )}
     </div>
