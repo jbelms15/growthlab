@@ -20,6 +20,8 @@ const blankForm = {
   status: 'sent',
   notes: '',
   date: new Date().toISOString().split('T')[0],
+  obs_content: '',
+  obs_signal_type: 'other',
 }
 
 export default function ExecutionPage() {
@@ -29,12 +31,15 @@ export default function ExecutionPage() {
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(blankForm)
   const [submitting, setSubmitting] = useState(false)
+  const [signals, setSignals] = useState<string | null>(null)
+  const [obsTemplate, setObsTemplate] = useState<string | null>(null)
+  const [showObs, setShowObs] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     async function load() {
-      const [compsRes, tpsRes] = await Promise.all([
+      const [compsRes, tpsRes, campRes] = await Promise.all([
         supabase
           .from('companies')
           .select('*')
@@ -47,15 +52,23 @@ export default function ExecutionPage() {
           .eq('campaign_id', id)
           .order('created_at', { ascending: false })
           .limit(60),
+        supabase
+          .from('campaigns')
+          .select('wizard_data')
+          .eq('id', id)
+          .single(),
       ])
       setCompanies(compsRes.data || [])
       setTouchpoints(tpsRes.data || [])
+      const wd = campRes.data?.wizard_data || {}
+      setSignals(wd.signals || null)
+      setObsTemplate(wd.observation_template || null)
       setLoading(false)
     }
     load()
   }, [id])
 
-  // Preselect company from URL query (from targets page)
+  // Preselect company from URL query
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -69,21 +82,33 @@ export default function ExecutionPage() {
   const log = async () => {
     if (!form.company_id) return
     setSubmitting(true)
-    const { data } = await supabase
-      .from('touchpoints')
-      .insert({
-        campaign_id: id,
-        company_id: form.company_id,
-        contact_name: form.contact_name || null,
-        channel: form.channel,
-        step_num: form.step_num,
-        status: form.status,
-        date: form.date,
-        notes: form.notes || null,
-      })
-      .select()
-      .single()
 
+    const [tpResult] = await Promise.all([
+      supabase
+        .from('touchpoints')
+        .insert({
+          campaign_id: id,
+          company_id: form.company_id,
+          contact_name: form.contact_name || null,
+          channel: form.channel,
+          step_num: form.step_num,
+          status: form.status,
+          date: form.date,
+          notes: form.notes || null,
+        })
+        .select()
+        .single(),
+      // Log observation if filled
+      form.obs_content.trim()
+        ? supabase.from('observations').insert({
+            company_id: form.company_id,
+            content: form.obs_content.trim(),
+            signal_type: form.obs_signal_type,
+          })
+        : Promise.resolve(),
+    ])
+
+    const data = tpResult.data
     if (data) {
       setTouchpoints(prev => [data, ...prev])
       // Auto-promote prospect → active
@@ -95,6 +120,7 @@ export default function ExecutionPage() {
         )
       }
       setForm(f => ({ ...blankForm, date: f.date }))
+      setShowObs(false)
     }
     setSubmitting(false)
   }
@@ -121,6 +147,16 @@ export default function ExecutionPage() {
         <Stat label="Replies / meetings today" value={todayReplies} accent={todayReplies > 0} />
         <Stat label="Total meetings booked" value={totalMeetings} accent={totalMeetings > 0} />
       </div>
+
+      {/* Signal context */}
+      {(signals || obsTemplate) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-5 text-sm">
+          <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1.5">What to look for</p>
+          {signals && <p className="text-amber-800 whitespace-pre-wrap">{signals}</p>}
+          {obsTemplate && signals && <div className="my-2 border-t border-amber-200" />}
+          {obsTemplate && <p className="text-amber-700 whitespace-pre-wrap text-xs">{obsTemplate}</p>}
+        </div>
+      )}
 
       {/* Log form */}
       <div className="border border-gray-200 rounded-xl p-5 mb-6">
@@ -207,6 +243,42 @@ export default function ExecutionPage() {
           className="w-full text-sm border border-gray-200 rounded-md px-3 py-2 resize-none mb-3"
           placeholder="Notes (optional)"
         />
+
+        {/* Observation toggle */}
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={() => setShowObs(v => !v)}
+            className="text-xs text-gray-400 hover:text-indigo-600 transition-colors"
+          >
+            {showObs ? '▾ Hide observation' : '+ Also log an observation'}
+          </button>
+          {showObs && (
+            <div className="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+              <div className="flex gap-2">
+                <select
+                  value={form.obs_signal_type}
+                  onChange={e => setForm(f => ({ ...f, obs_signal_type: e.target.value }))}
+                  className="text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white shrink-0"
+                >
+                  <option value="hiring">Hiring</option>
+                  <option value="funding">Funding</option>
+                  <option value="new_role">New role</option>
+                  <option value="news">News</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  type="text"
+                  value={form.obs_content}
+                  onChange={e => setForm(f => ({ ...f, obs_content: e.target.value }))}
+                  placeholder="What did you observe? (hiring for X, raised $Y, new VP of...)"
+                  className="flex-1 text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         <button
           onClick={log}
           disabled={!form.company_id || submitting}
