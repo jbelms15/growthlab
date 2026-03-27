@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PLAYBOOK_SECTIONS, type PlaybookEntry, type PlaybookSection } from '@/lib/types'
 
@@ -16,19 +17,32 @@ const sectionColors: Record<string, string> = {
 
 const blankForm = { section: PLAYBOOK_SECTIONS[0] as PlaybookSection, title: '', content: '' }
 
+interface Campaign { id: string; name: string }
+
 export default function PlaybookPage() {
+  const searchParams = useSearchParams()
   const [entries, setEntries] = useState<PlaybookEntry[]>([])
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [campaignFilter, setCampaignFilter] = useState<string>('all')
   const [activeTab, setActiveTab] = useState<PlaybookSection | 'all'>('all')
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState<{ section: PlaybookSection; title: string; content: string }>(blankForm)
   const [saving, setSaving] = useState(false)
 
+  // Pre-select campaign from URL param
   useEffect(() => {
-    supabase
-      .from('playbook_entries')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setEntries(data || []))
+    const cid = searchParams.get('campaign')
+    if (cid) setCampaignFilter(cid)
+  }, [searchParams])
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('playbook_entries').select('*').order('created_at', { ascending: false }),
+      supabase.from('campaigns').select('id, name').order('created_at', { ascending: false }),
+    ]).then(([entriesRes, campsRes]) => {
+      setEntries(entriesRes.data || [])
+      setCampaigns(campsRes.data || [])
+    })
   }, [])
 
   const openForm = (section?: PlaybookSection) => {
@@ -39,9 +53,10 @@ export default function PlaybookPage() {
   const add = async () => {
     if (!form.title.trim()) return
     setSaving(true)
+    const campaignId = campaignFilter !== 'all' ? campaignFilter : null
     const { data } = await supabase
       .from('playbook_entries')
-      .insert({ section: form.section, title: form.title, content: form.content || null })
+      .insert({ section: form.section, title: form.title, content: form.content || null, campaign_id: campaignId })
       .select()
       .single()
     setSaving(false)
@@ -59,15 +74,21 @@ export default function PlaybookPage() {
 
   const tabs: (PlaybookSection | 'all')[] = ['all', ...PLAYBOOK_SECTIONS]
 
-  const visibleEntries =
-    activeTab === 'all' ? entries : entries.filter(e => e.section === activeTab)
+  // Apply campaign filter
+  const filtered = campaignFilter === 'all'
+    ? entries
+    : entries.filter(e => e.campaign_id === campaignFilter || e.campaign_id === null)
+
+  const visibleEntries = activeTab === 'all' ? filtered : filtered.filter(e => e.section === activeTab)
 
   const groupedBySection = PLAYBOOK_SECTIONS.reduce((acc, sec) => {
-    acc[sec] = entries.filter(e => e.section === sec)
+    acc[sec] = filtered.filter(e => e.section === sec)
     return acc
   }, {} as Record<PlaybookSection, PlaybookEntry[]>)
 
-  const unsectioned = entries.filter(e => !e.section)
+  const unsectioned = filtered.filter(e => !e.section)
+
+  const campaignName = (id: string) => campaigns.find(c => c.id === id)?.name
 
   return (
     <div>
@@ -80,14 +101,46 @@ export default function PlaybookPage() {
           + Add Entry
         </button>
       </div>
-      <p className="text-sm text-gray-400 mb-6">
+      <p className="text-sm text-gray-400 mb-5">
         What&apos;s working. What to repeat. Your living outbound manual.
       </p>
 
-      {/* Tab bar */}
+      {/* Campaign filter */}
+      {campaigns.length > 1 && (
+        <div className="flex items-center gap-2 mb-5">
+          <span className="text-xs text-gray-400 shrink-0">Campaign:</span>
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setCampaignFilter('all')}
+              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                campaignFilter === 'all'
+                  ? 'bg-gray-900 text-white border-gray-900'
+                  : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+              }`}
+            >
+              All campaigns
+            </button>
+            {campaigns.map(c => (
+              <button
+                key={c.id}
+                onClick={() => setCampaignFilter(c.id)}
+                className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+                  campaignFilter === c.id
+                    ? 'bg-gray-900 text-white border-gray-900'
+                    : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                }`}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Section tab bar */}
       <div className="flex gap-1.5 mb-6 overflow-x-auto pb-1 scrollbar-hide">
         {tabs.map(tab => {
-          const count = tab === 'all' ? entries.length : (groupedBySection[tab as PlaybookSection]?.length ?? 0)
+          const count = tab === 'all' ? filtered.length : (groupedBySection[tab as PlaybookSection]?.length ?? 0)
           return (
             <button
               key={tab}
@@ -98,7 +151,7 @@ export default function PlaybookPage() {
                   : 'border-gray-200 text-gray-500 hover:bg-gray-50'
               }`}
             >
-              {tab === 'all' ? `All (${count})` : `${tab} ${count > 0 ? `(${count})` : ''}`}
+              {tab === 'all' ? `All (${count})` : `${tab}${count > 0 ? ` (${count})` : ''}`}
             </button>
           )
         })}
@@ -179,7 +232,7 @@ export default function PlaybookPage() {
                 ) : (
                   <div className="space-y-2">
                     {sectionEntries.map(entry => (
-                      <EntryCard key={entry.id} entry={entry} onDelete={remove} />
+                      <EntryCard key={entry.id} entry={entry} campaignName={entry.campaign_id ? campaignName(entry.campaign_id) : undefined} onDelete={remove} />
                     ))}
                   </div>
                 )}
@@ -191,7 +244,7 @@ export default function PlaybookPage() {
               <p className="text-xs text-gray-400 mb-2">Uncategorized</p>
               <div className="space-y-2">
                 {unsectioned.map(entry => (
-                  <EntryCard key={entry.id} entry={entry} onDelete={remove} />
+                  <EntryCard key={entry.id} entry={entry} campaignName={entry.campaign_id ? campaignName(entry.campaign_id) : undefined} onDelete={remove} />
                 ))}
               </div>
             </div>
@@ -217,7 +270,7 @@ export default function PlaybookPage() {
           ) : (
             <div className="space-y-2">
               {visibleEntries.map(entry => (
-                <EntryCard key={entry.id} entry={entry} onDelete={remove} />
+                <EntryCard key={entry.id} entry={entry} campaignName={entry.campaign_id ? campaignName(entry.campaign_id) : undefined} onDelete={remove} />
               ))}
             </div>
           )}
@@ -227,20 +280,28 @@ export default function PlaybookPage() {
   )
 }
 
-function EntryCard({ entry, onDelete }: { entry: PlaybookEntry; onDelete: (id: string) => void }) {
+function EntryCard({
+  entry,
+  campaignName,
+  onDelete,
+}: {
+  entry: PlaybookEntry
+  campaignName?: string
+  onDelete: (id: string) => void
+}) {
   const [expanded, setExpanded] = useState(false)
 
   return (
     <div className="border border-gray-200 rounded-xl p-4">
       <div className="flex items-start gap-3">
         <div className="flex-1 min-w-0">
-          <button
-            onClick={() => setExpanded(v => !v)}
-            className="text-left w-full"
-          >
+          <button onClick={() => setExpanded(v => !v)} className="text-left w-full">
             <p className="font-medium text-gray-900 text-sm">{entry.title}</p>
           </button>
-          {(expanded || !entry.content) && entry.content && (
+          {campaignName && (
+            <p className="text-xs text-gray-400 mt-0.5">{campaignName}</p>
+          )}
+          {expanded && entry.content && (
             <p className="text-sm text-gray-500 mt-2 whitespace-pre-wrap">{entry.content}</p>
           )}
           {!expanded && entry.content && (

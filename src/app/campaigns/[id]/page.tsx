@@ -134,7 +134,7 @@ export default function CampaignPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-3">
+      <div className="grid grid-cols-4 gap-3 mb-3">
         {[
           {
             href: `/campaigns/${id}/targets`,
@@ -150,6 +150,11 @@ export default function CampaignPage() {
             href: `/campaigns/${id}/wizard`,
             label: 'Strategy',
             desc: 'ICP, personas, messaging, sequence',
+          },
+          {
+            href: `/playbook?campaign=${id}`,
+            label: 'Playbook',
+            desc: 'Learnings for this campaign',
           },
         ].map(link => (
           <Link
