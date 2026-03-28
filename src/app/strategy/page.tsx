@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
   type WorkspaceData, type FoundationData, type MarketDesignData, type ICPData,
-  type SignalsData, type SignalType, type MessagingData, type MessagingRow,
+  type SignalsData, type SignalType, type MessagingData, type MessagingRow, type SubjectLine,
+  type CompetitiveData, type Competitor, type ObjectionsData, type Objection,
   type SequencesData, type SequenceStep, type LaunchPlanData, type WeeklyTarget,
   type SegmentItem, type Persona, type Pain,
   defaultWorkspaceData,
@@ -20,6 +21,8 @@ const PHASES = [
   { id: 'market_design' as const, label: 'Market Design', sub: 'Weeks 2–3' },
   { id: 'signals'       as const, label: 'Signals',       sub: 'Week 3'    },
   { id: 'messaging'     as const, label: 'Messaging',     sub: 'Weeks 3–4' },
+  { id: 'competitive'   as const, label: 'Competitive',   sub: 'Ongoing'   },
+  { id: 'objections'    as const, label: 'Objections',    sub: 'Ongoing'   },
   { id: 'sequences'     as const, label: 'Sequences',     sub: 'Week 4'    },
   { id: 'launch_plan'   as const, label: 'Launch Plan',   sub: 'Weeks 5–6' },
 ]
@@ -33,7 +36,9 @@ function isStarted(data: WorkspaceData, id: PhaseId): boolean {
                             || data.market_design.segments.length > 0
                             || data.market_design.personas.length > 0
     case 'signals':       return data.signals.signal_types.length > 0 || data.signals.qualification_criteria.trim().length > 0
-    case 'messaging':     return data.messaging.matrix.length > 0
+    case 'messaging':     return data.messaging.matrix.length > 0 || data.messaging.subject_lines.length > 0
+    case 'competitive':   return (data.competitive?.competitors?.length ?? 0) > 0 || !!(data.competitive?.positioning_notes?.trim())
+    case 'objections':    return (data.objections?.objections?.length ?? 0) > 0
     case 'sequences':     return data.sequences.steps.length > 0
     case 'launch_plan':   return data.launch_plan.weekly_targets.length > 0 || data.launch_plan.success_metrics.trim().length > 0
   }
@@ -130,6 +135,8 @@ export default function StrategyPage() {
       {activePhase === 'market_design' && <MarketDesignPhase  data={data.market_design} onChange={d => updatePhase('market_design', d)} />}
       {activePhase === 'signals'       && <SignalsPhase       data={data.signals}       onChange={d => updatePhase('signals',       d)} />}
       {activePhase === 'messaging'     && <MessagingPhase     data={data.messaging}     onChange={d => updatePhase('messaging',     d)} />}
+      {activePhase === 'competitive'   && <CompetitivePhase   data={data.competitive ?? { competitors: [], positioning_notes: '' }}   onChange={d => updatePhase('competitive',   d)} />}
+      {activePhase === 'objections'    && <ObjectionsPhase    data={data.objections  ?? { objections: [] }}                           onChange={d => updatePhase('objections',    d)} />}
       {activePhase === 'sequences'     && <SequencesPhase     data={data.sequences}     onChange={d => updatePhase('sequences',     d)} />}
       {activePhase === 'launch_plan'   && <LaunchPlanPhase    data={data.launch_plan}   onChange={d => updatePhase('launch_plan',   d)} />}
     </div>
@@ -420,69 +427,229 @@ function SignalsPhase({ data, onChange }: { data: SignalsData; onChange: (d: Sig
 // ─── Messaging ────────────────────────────────────────────────────────────────
 
 function MessagingPhase({ data, onChange }: { data: MessagingData; onChange: (d: MessagingData) => void }) {
+  const [tab, setTab] = useState<'hooks' | 'subject_lines'>('hooks')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const add = () => {
-    const row: MessagingRow = { id: crypto.randomUUID(), segment: '', persona: '', pain: '', hook: '', channel: '', social_proof: '', cta_soft: '', cta_hard: '' }
-    onChange({ matrix: [...data.matrix, row] })
+  const subjectLines = data.subject_lines ?? []
+
+  const addHook = () => {
+    const row: MessagingRow = { id: crypto.randomUUID(), segment: '', persona: '', pain: '', source_quote: '', hook: '', channel: '', social_proof: '', cta_soft: '', cta_hard: '' }
+    onChange({ ...data, matrix: [...data.matrix, row] })
     setExpandedId(row.id)
   }
-  const upd = (id: string, u: Partial<MessagingRow>) => onChange({ matrix: data.matrix.map(r => r.id === id ? { ...r, ...u } : r) })
-  const del = (id: string) => onChange({ matrix: data.matrix.filter(r => r.id !== id) })
+  const updHook = (id: string, u: Partial<MessagingRow>) => onChange({ ...data, matrix: data.matrix.map(r => r.id === id ? { ...r, ...u } : r) })
+  const delHook = (id: string) => onChange({ ...data, matrix: data.matrix.filter(r => r.id !== id) })
+
+  const addSubjectLine = () => {
+    const sl: SubjectLine = { id: crypto.randomUUID(), subject: '', pain_angle: '', persona: '', signal: '', notes: '' }
+    onChange({ ...data, subject_lines: [...subjectLines, sl] })
+  }
+  const updSl = (id: string, u: Partial<SubjectLine>) => onChange({ ...data, subject_lines: subjectLines.map(s => s.id === id ? { ...s, ...u } : s) })
+  const delSl = (id: string) => onChange({ ...data, subject_lines: subjectLines.filter(s => s.id !== id) })
 
   return (
     <div>
-      <p className="text-sm text-gray-400 mb-6">One hook per persona/pain combination. Not one template — a library tied to context.</p>
+      <p className="text-sm text-gray-400 mb-5">One hook per persona/pain combination — a library tied to context, not one template.</p>
 
-      <div className="space-y-2 mb-4">
-        {data.matrix.map(row => {
-          const expanded = expandedId === row.id
-          const hasContent = row.hook || row.segment
-          return (
-            <div key={row.id} className="border border-gray-200 rounded-xl overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-3">
-                <button onClick={() => setExpandedId(expanded ? null : row.id)} className="flex-1 flex items-start gap-3 text-left">
-                  <span className="text-gray-300 text-xs mt-0.5">{expanded ? '▾' : '▸'}</span>
-                  <div className="flex-1 min-w-0">
-                    {hasContent ? (
-                      <>
-                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                          {row.segment && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{row.segment}</span>}
-                          {row.persona && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{row.persona}</span>}
-                          {row.channel && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{row.channel}</span>}
-                        </div>
-                        {row.hook && <p className="text-sm text-gray-600 truncate">{row.hook}</p>}
-                      </>
-                    ) : (
-                      <p className="text-sm text-gray-300">New message variant</p>
-                    )}
+      <div className="flex gap-1 mb-6 border-b border-gray-100 pb-3">
+        {(['hooks', 'subject_lines'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`text-sm px-3 py-1.5 rounded-md transition-colors ${tab === t ? 'bg-gray-100 text-gray-900 font-medium' : 'text-gray-500 hover:text-gray-700'}`}>
+            {t === 'hooks' ? 'Message Hooks' : 'Subject Lines'}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'hooks' && (
+        <div>
+          <div className="space-y-2 mb-4">
+            {data.matrix.map(row => {
+              const expanded = expandedId === row.id
+              const hasContent = row.hook || row.segment
+              return (
+                <div key={row.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <button onClick={() => setExpandedId(expanded ? null : row.id)} className="flex-1 flex items-start gap-3 text-left">
+                      <span className="text-gray-300 text-xs mt-0.5">{expanded ? '▾' : '▸'}</span>
+                      <div className="flex-1 min-w-0">
+                        {hasContent ? (
+                          <>
+                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                              {row.segment && <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{row.segment}</span>}
+                              {row.persona && <span className="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full">{row.persona}</span>}
+                              {row.channel && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{row.channel}</span>}
+                            </div>
+                            {row.hook && <p className="text-sm text-gray-600 truncate">{row.hook}</p>}
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-300">New message variant</p>
+                        )}
+                      </div>
+                    </button>
+                    <button onClick={() => delHook(row.id)} className="text-gray-300 hover:text-red-400 text-xs shrink-0">✕</button>
                   </div>
-                </button>
-                <button onClick={() => del(row.id)} className="text-gray-300 hover:text-red-400 text-xs shrink-0">✕</button>
-              </div>
+                  {expanded && (
+                    <div className="border-t border-gray-100 px-4 py-4 bg-gray-50 space-y-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        <input value={row.segment} onChange={e => updHook(row.id, { segment: e.target.value })} placeholder="Segment"                   className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
+                        <input value={row.persona} onChange={e => updHook(row.id, { persona: e.target.value })} placeholder="Persona"                   className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
+                        <input value={row.channel} onChange={e => updHook(row.id, { channel: e.target.value })} placeholder="Channel (LinkedIn, Email)" className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
+                      </div>
+                      <textarea value={row.pain}         onChange={e => updHook(row.id, { pain:         e.target.value })} rows={2} placeholder="Pain being addressed"                                                                          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
+                      <input    value={row.source_quote} onChange={e => updHook(row.id, { source_quote: e.target.value })}           placeholder="Source quote — exact buyer phrase this hook is based on"  className="w-full text-sm border border-gray-100 rounded-lg px-3 py-2 bg-gray-50 focus:outline-none italic text-gray-500" />
+                      <textarea value={row.hook}         onChange={e => updHook(row.id, { hook:         e.target.value })} rows={2} placeholder='Hook — the opening line that earns attention'                                                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
+                      <input    value={row.social_proof} onChange={e => updHook(row.id, { social_proof: e.target.value })}           placeholder="Social proof (similar company + result)"                                                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <textarea value={row.cta_soft} onChange={e => updHook(row.id, { cta_soft: e.target.value })} rows={2} placeholder="Soft CTA (first touch)" className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
+                        <textarea value={row.cta_hard} onChange={e => updHook(row.id, { cta_hard: e.target.value })} rows={2} placeholder="Hard CTA (later in sequence)" className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {data.matrix.length === 0 && <p className="text-sm text-gray-300 border border-dashed border-gray-200 rounded-xl px-4 py-8 text-center mb-4">No message variants yet.</p>}
+          <button onClick={addHook} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">+ Add message variant</button>
+        </div>
+      )}
 
+      {tab === 'subject_lines' && (
+        <div>
+          <p className="text-xs text-gray-400 mb-4">Subject lines are 50% of your open rate. Build a library — 6–8 variants mapped to pain, persona, and signal.</p>
+          {subjectLines.length > 0 && (
+            <div className="border border-gray-200 rounded-xl overflow-hidden mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-xs text-gray-400">
+                    <th className="px-4 py-2 text-left font-medium">Subject line</th>
+                    <th className="px-4 py-2 text-left font-medium">Pain / angle</th>
+                    <th className="px-4 py-2 text-left font-medium">Persona</th>
+                    <th className="px-4 py-2 text-left font-medium">Signal</th>
+                    <th className="px-4 py-2 text-left font-medium">Notes</th>
+                    <th className="px-4 py-2 w-6" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {subjectLines.map(sl => (
+                    <tr key={sl.id}>
+                      <td className="px-4 py-2"><input value={sl.subject}     onChange={e => updSl(sl.id, { subject:     e.target.value })} placeholder="lost a sponsor at renewal?" className="w-full text-sm focus:outline-none bg-transparent font-medium" /></td>
+                      <td className="px-4 py-2"><input value={sl.pain_angle}  onChange={e => updSl(sl.id, { pain_angle:  e.target.value })} placeholder="Can't prove ROI"            className="w-full text-sm focus:outline-none bg-transparent text-gray-500" /></td>
+                      <td className="px-4 py-2"><input value={sl.persona}     onChange={e => updSl(sl.id, { persona:     e.target.value })} placeholder="Head of Partnerships"       className="w-full text-sm focus:outline-none bg-transparent text-gray-500" /></td>
+                      <td className="px-4 py-2"><input value={sl.signal}      onChange={e => updSl(sl.id, { signal:      e.target.value })} placeholder="New sponsor announced"      className="w-full text-sm focus:outline-none bg-transparent text-gray-500" /></td>
+                      <td className="px-4 py-2"><input value={sl.notes}       onChange={e => updSl(sl.id, { notes:       e.target.value })} placeholder="Direct from buyer language" className="w-full text-sm focus:outline-none bg-transparent text-gray-400" /></td>
+                      <td className="px-4 py-2"><button onClick={() => delSl(sl.id)} className="text-gray-300 hover:text-red-400 text-xs">✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {subjectLines.length === 0 && <p className="text-sm text-gray-300 border border-dashed border-gray-200 rounded-xl px-4 py-8 text-center mb-4">No subject lines yet.</p>}
+          <button onClick={addSubjectLine} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">+ Add subject line</button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Competitive ──────────────────────────────────────────────────────────────
+
+function CompetitivePhase({ data, onChange }: { data: CompetitiveData; onChange: (d: CompetitiveData) => void }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const add = () => {
+    const c: Competitor = { id: crypto.randomUUID(), name: '', what_they_do: '', we_win_on: '', they_win_on: '', how_to_handle: '' }
+    onChange({ ...data, competitors: [...data.competitors, c] })
+    setExpandedId(c.id)
+  }
+  const upd = (id: string, u: Partial<Competitor>) => onChange({ ...data, competitors: data.competitors.map(c => c.id === id ? { ...c, ...u } : c) })
+  const del = (id: string) => onChange({ ...data, competitors: data.competitors.filter(c => c.id !== id) })
+
+  return (
+    <div>
+      <p className="text-sm text-gray-400 mb-6">Know who you&apos;re competing with and what to say when a prospect brings them up.</p>
+      <div className="space-y-2 mb-4">
+        {data.competitors.map(c => {
+          const expanded = expandedId === c.id
+          return (
+            <div key={c.id} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <button onClick={() => setExpandedId(expanded ? null : c.id)} className="flex-1 flex items-center gap-3 text-left">
+                  <span className="text-gray-300 text-xs">{expanded ? '▾' : '▸'}</span>
+                  <p className="text-sm font-medium text-gray-900">{c.name || <span className="text-gray-300 font-normal">Unnamed competitor</span>}</p>
+                  {c.what_they_do && <p className="text-xs text-gray-400 truncate">{c.what_they_do}</p>}
+                </button>
+                <button onClick={() => del(c.id)} className="text-gray-300 hover:text-red-400 text-xs shrink-0">✕</button>
+              </div>
               {expanded && (
                 <div className="border-t border-gray-100 px-4 py-4 bg-gray-50 space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
-                    <input value={row.segment} onChange={e => upd(row.id, { segment: e.target.value })} placeholder="Segment"                   className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
-                    <input value={row.persona} onChange={e => upd(row.id, { persona: e.target.value })} placeholder="Persona"                   className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
-                    <input value={row.channel} onChange={e => upd(row.id, { channel: e.target.value })} placeholder="Channel (LinkedIn, Email)" className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
-                  </div>
-                  <textarea value={row.pain}         onChange={e => upd(row.id, { pain:         e.target.value })} rows={2} placeholder="Pain being addressed"                                                                          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
-                  <textarea value={row.hook}         onChange={e => upd(row.id, { hook:         e.target.value })} rows={2} placeholder='Hook — the opening line that earns attention (e.g. "How [Similar Co] increased retention by X%")' className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
-                  <input    value={row.social_proof} onChange={e => upd(row.id, { social_proof: e.target.value })}           placeholder="Social proof (similar company + result)"                                                        className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
+                  <input value={c.name}          onChange={e => upd(c.id, { name:          e.target.value })} placeholder="Competitor name (e.g. Blinkfire Analytics)"          className={innerInputCls} />
+                  <input value={c.what_they_do}  onChange={e => upd(c.id, { what_they_do:  e.target.value })} placeholder="What they do in one line"                            className={innerInputCls} />
                   <div className="grid grid-cols-2 gap-3">
-                    <textarea value={row.cta_soft} onChange={e => upd(row.id, { cta_soft: e.target.value })} rows={2} placeholder="Soft CTA (first touch — low friction)" className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
-                    <textarea value={row.cta_hard} onChange={e => upd(row.id, { cta_hard: e.target.value })} rows={2} placeholder="Hard CTA (later in sequence — direct ask)" className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
+                    <textarea value={c.we_win_on}    onChange={e => upd(c.id, { we_win_on:    e.target.value })} rows={3} placeholder="We win on: (price, speed, esports-native, EU compliance...)" className="text-sm border border-green-100 bg-green-50 rounded-lg px-3 py-2 resize-none focus:outline-none" />
+                    <textarea value={c.they_win_on}  onChange={e => upd(c.id, { they_win_on:  e.target.value })} rows={3} placeholder="They win on: (brand name, enterprise features...)"            className="text-sm border border-red-100 bg-red-50 rounded-lg px-3 py-2 resize-none focus:outline-none" />
                   </div>
+                  <textarea value={c.how_to_handle} onChange={e => upd(c.id, { how_to_handle: e.target.value })} rows={3} placeholder="How to handle it when a prospect brings them up" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white resize-none focus:outline-none" />
                 </div>
               )}
             </div>
           )
         })}
       </div>
-      {data.matrix.length === 0 && <p className="text-sm text-gray-300 border border-dashed border-gray-200 rounded-xl px-4 py-8 text-center mb-4">No message variants yet.</p>}
-      <button onClick={add} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">+ Add message variant</button>
+      {data.competitors.length === 0 && <p className="text-sm text-gray-300 border border-dashed border-gray-200 rounded-xl px-4 py-8 text-center mb-4">No competitors added yet.</p>}
+      <button onClick={add} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium mb-6">+ Add competitor</button>
+      <Field label="Positioning Notes" desc="Your overall competitive positioning — how you frame Shikenso relative to the market.">
+        <textarea value={data.positioning_notes} onChange={e => onChange({ ...data, positioning_notes: e.target.value })} rows={3} className={textareaCls} placeholder="e.g. Only platform priced for rights holders. Competitors either serve the brand side or are enterprise-only..." />
+      </Field>
+    </div>
+  )
+}
+
+// ─── Objections ───────────────────────────────────────────────────────────────
+
+function ObjectionsPhase({ data, onChange }: { data: ObjectionsData; onChange: (d: ObjectionsData) => void }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const add = () => {
+    const o: Objection = { id: crypto.randomUUID(), objection: '', context: '', response: '', follow_up: '' }
+    onChange({ objections: [...data.objections, o] })
+    setExpandedId(o.id)
+  }
+  const upd = (id: string, u: Partial<Objection>) => onChange({ objections: data.objections.map(o => o.id === id ? { ...o, ...u } : o) })
+  const del = (id: string) => onChange({ objections: data.objections.filter(o => o.id !== id) })
+
+  return (
+    <div>
+      <p className="text-sm text-gray-400 mb-6">Every objection you hear is a pattern. Script your responses so you never wing it.</p>
+      <div className="space-y-2 mb-4">
+        {data.objections.map(o => {
+          const expanded = expandedId === o.id
+          return (
+            <div key={o.id} className="border border-gray-200 rounded-xl overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3">
+                <button onClick={() => setExpandedId(expanded ? null : o.id)} className="flex-1 flex items-start gap-3 text-left">
+                  <span className="text-gray-300 text-xs mt-0.5">{expanded ? '▾' : '▸'}</span>
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{o.objection || <span className="text-gray-300 font-normal">New objection</span>}</p>
+                    {o.context && <p className="text-xs text-gray-400">{o.context}</p>}
+                  </div>
+                </button>
+                <button onClick={() => del(o.id)} className="text-gray-300 hover:text-red-400 text-xs shrink-0">✕</button>
+              </div>
+              {expanded && (
+                <div className="border-t border-gray-100 px-4 py-4 bg-gray-50 space-y-3">
+                  <input    value={o.objection} onChange={e => upd(o.id, { objection: e.target.value })}        placeholder='Objection (e.g. "We already use Blinkfire")'                      className={innerInputCls} />
+                  <input    value={o.context}   onChange={e => upd(o.id, { context:   e.target.value })}        placeholder="When this comes up (e.g. Day 7 email reply, LinkedIn message)"    className={innerInputCls} />
+                  <textarea value={o.response}  onChange={e => upd(o.id, { response:  e.target.value })} rows={4} placeholder="Word-for-word response — what you actually say or write back"   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white resize-none focus:outline-none" />
+                  <textarea value={o.follow_up} onChange={e => upd(o.id, { follow_up: e.target.value })} rows={2} placeholder="Follow-up move if they don't respond to your response"          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white resize-none focus:outline-none" />
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+      {data.objections.length === 0 && <p className="text-sm text-gray-300 border border-dashed border-gray-200 rounded-xl px-4 py-8 text-center mb-4">No objections scripted yet.</p>}
+      <button onClick={add} className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">+ Add objection</button>
     </div>
   )
 }

@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import {
   type WorkspaceData, type ICPData, type SegmentItem, type Persona, type Pain,
-  type SignalsData, type MessagingRow, type SequenceStep, type LaunchPlanData,
+  type SignalsData, type MessagingRow, type SubjectLine, type CompetitiveData,
+  type Competitor, type ObjectionsData, type Objection,
+  type SequenceStep, type LaunchPlanData,
   defaultWorkspaceData,
 } from '@/lib/workspace-types'
 
@@ -52,6 +54,8 @@ export default function BriefPage() {
   const hasSignals      = data.signals.signal_types.length > 0 || !!data.signals.qualification_criteria.trim()
   const hasMessaging    = data.messaging.matrix.length > 0
   const hasSequences    = data.sequences.steps.length > 0
+  const hasCompetitive  = (data.competitive?.competitors?.length ?? 0) > 0 || !!data.competitive?.positioning_notes?.trim()
+  const hasObjections   = (data.objections?.objections?.length ?? 0) > 0
   const hasLaunch       = data.launch_plan.weekly_targets.length > 0 || !!data.launch_plan.success_metrics.trim()
 
   return (
@@ -133,23 +137,40 @@ export default function BriefPage() {
 
         {hasMessaging && (
           <section>
-            <SectionHead n="04" title="Messaging Architecture" sub="One hook per persona / pain combination" />
-            <div className="space-y-4">
+            <SectionHead n="04" title="Messaging Architecture" sub="Hooks, subject lines — one angle per persona / pain" />
+            <div className="space-y-4 mb-8">
               {data.messaging.matrix.map((row, i) => <HookCard key={row.id} row={row} index={i} />)}
             </div>
+            {(data.messaging.subject_lines ?? []).length > 0 && (
+              <SubjectLinesBlock lines={data.messaging.subject_lines ?? []} />
+            )}
+          </section>
+        )}
+
+        {hasCompetitive && (
+          <section>
+            <SectionHead n="05" title="Competitive Positioning" sub="How we win — and what to say when they bring up a competitor" />
+            <CompetitiveSection competitive={data.competitive} />
+          </section>
+        )}
+
+        {hasObjections && (
+          <section>
+            <SectionHead n="06" title="Objection Handling" sub="Scripted responses to the most common pushback" />
+            <ObjectionsSection objections={data.objections} />
           </section>
         )}
 
         {hasSequences && (
           <section>
-            <SectionHead n="05" title="Sequence Blueprint" sub={`${data.sequences.steps.length}-step cadence · design here, build in HubSpot`} />
+            <SectionHead n="07" title="Sequence Blueprint" sub={`${data.sequences.steps.length}-step cadence · design here, build in HubSpot`} />
             <SequenceTimeline steps={data.sequences.steps} notes={data.sequences.notes} />
           </section>
         )}
 
         {hasLaunch && (
           <section>
-            <SectionHead n="06" title="Launch Plan" sub="Working backwards from 6 meetings / month" />
+            <SectionHead n="08" title="Launch Plan" sub="Working backwards from 6 meetings / month" />
             <LaunchBlock lp={data.launch_plan} />
           </section>
         )}
@@ -476,6 +497,115 @@ function HookCard({ row, index }: { row: MessagingRow; index: number }) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Subject Lines ─────────────────────────────────────────────────────────────
+
+function SubjectLinesBlock({ lines }: { lines: SubjectLine[] }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Subject Line Library</p>
+      <div className="border border-gray-200 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 text-xs text-gray-500 font-semibold uppercase tracking-wider">
+              <th className="px-4 py-2 text-left">Subject line</th>
+              <th className="px-4 py-2 text-left">Pain / angle</th>
+              <th className="px-4 py-2 text-left">Persona</th>
+              <th className="px-4 py-2 text-left">Signal</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {lines.map(sl => (
+              <tr key={sl.id}>
+                <td className="px-4 py-2.5 font-medium text-gray-900">{sl.subject}</td>
+                <td className="px-4 py-2.5 text-gray-500 text-xs">{sl.pain_angle}</td>
+                <td className="px-4 py-2.5 text-gray-500 text-xs">{sl.persona}</td>
+                <td className="px-4 py-2.5 text-gray-500 text-xs">{sl.signal}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── Competitive ───────────────────────────────────────────────────────────────
+
+function CompetitiveSection({ competitive }: { competitive: CompetitiveData }) {
+  return (
+    <div className="space-y-4">
+      {competitive.competitors.map((c: Competitor) => (
+        <div key={c.id} className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gray-50 px-5 py-3 border-b border-gray-100">
+            <p className="text-sm font-semibold text-gray-900">{c.name}</p>
+            {c.what_they_do?.trim() && <p className="text-xs text-gray-500 mt-0.5">{c.what_they_do}</p>}
+          </div>
+          <div className="grid grid-cols-3 divide-x divide-gray-100">
+            {c.we_win_on?.trim() && (
+              <div className="px-4 py-4 bg-green-50">
+                <p className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-1.5">We win on</p>
+                <p className="text-xs text-green-800 leading-relaxed whitespace-pre-wrap">{c.we_win_on}</p>
+              </div>
+            )}
+            {c.they_win_on?.trim() && (
+              <div className="px-4 py-4 bg-red-50">
+                <p className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-1.5">They win on</p>
+                <p className="text-xs text-red-700 leading-relaxed whitespace-pre-wrap">{c.they_win_on}</p>
+              </div>
+            )}
+            {c.how_to_handle?.trim() && (
+              <div className="px-4 py-4">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">How to handle</p>
+                <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{c.how_to_handle}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+      {competitive.positioning_notes?.trim() && (
+        <div className="bg-gray-50 rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Overall Positioning</p>
+          <p className="text-sm text-gray-600 leading-relaxed">{competitive.positioning_notes}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Objections ────────────────────────────────────────────────────────────────
+
+function ObjectionsSection({ objections }: { objections: ObjectionsData }) {
+  return (
+    <div className="space-y-4">
+      {objections.objections.map((o: Objection, i: number) => (
+        <div key={o.id} className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-start gap-4 bg-gray-50 px-5 py-3 border-b border-gray-100">
+            <span className="text-xs font-mono font-bold text-gray-300 mt-0.5 shrink-0">{String(i + 1).padStart(2, '0')}</span>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">{o.objection}</p>
+              {o.context?.trim() && <p className="text-xs text-gray-400 mt-0.5">{o.context}</p>}
+            </div>
+          </div>
+          <div className="px-5 py-4 grid grid-cols-2 gap-6">
+            {o.response?.trim() && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Response</p>
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{o.response}</p>
+              </div>
+            )}
+            {o.follow_up?.trim() && (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">If no reply</p>
+                <p className="text-sm text-gray-500 leading-relaxed whitespace-pre-wrap">{o.follow_up}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

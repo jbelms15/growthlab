@@ -138,6 +138,7 @@ VALUES (
           "segment": "Tournament organisers",
           "persona": "Head of Partnerships",
           "pain": "Manual sponsor reporting across 10+ sponsors — hours wasted, looks unprofessional",
+          "source_quote": "We track 10 sponsors manually — it doesn't scale.",
           "hook": "How [Esports org] went from 4-hour manual reports to automated sponsor dashboards — and renewed every sponsor that season",
           "channel": "LinkedIn",
           "social_proof": "GIANTX used Shikenso data to integrate 17 new brand partners. MOONTON tracked €115M in branded media value. Both started because manual reporting had become unmanageable.",
@@ -149,11 +150,154 @@ VALUES (
           "segment": "Esports teams",
           "persona": "Head of Partnerships",
           "pain": "Losing sponsor pitches and renewals to orgs with better performance data",
+          "source_quote": "We lost [sponsor] at renewal because we couldn't show them the numbers.",
           "hook": "The reason most esports orgs lose sponsor renewals isn't the audience size — it's that they can't show brands what they actually got",
           "channel": "Email",
           "social_proof": "Orgs using Shikenso walk into renewals with a live performance report instead of a deck they built over a weekend. 300% increase in sponsor ROI is the average outcome we see.",
           "cta_soft": "Happy to send a sample sponsor report — takes 2 minutes to look at.",
           "cta_hard": "Would it be useful to run a free visibility audit on one of your current sponsors before your next renewal?"
+        }
+      ],
+      "subject_lines": [
+        {
+          "id": "sl-1",
+          "subject": "sponsor report for [ORG]",
+          "pain_angle": "Manual reporting / hours wasted",
+          "persona": "Head of Partnerships",
+          "signal": "New sponsor announced",
+          "notes": "Lower-case subject line performs better — looks like an internal forward. Works well as cold email opener."
+        },
+        {
+          "id": "sl-2",
+          "subject": "what did [Brand] actually get from [ORG]?",
+          "pain_angle": "Can't prove ROI to sponsors",
+          "persona": "Head of Partnerships",
+          "signal": "Renewal season approaching",
+          "notes": "Ask-style subject triggers curiosity. Works best when the brand name is a recognisable logo from their sponsor page."
+        },
+        {
+          "id": "sl-3",
+          "subject": "the data behind [ORG]'s next sponsorship pitch",
+          "pain_angle": "Losing pitches to data-equipped orgs",
+          "persona": "CEO / Founder",
+          "signal": "Hiring partnerships role",
+          "notes": "Positioning angle — implies we have something they don't. Good for orgs actively pitching new brands."
+        },
+        {
+          "id": "sl-4",
+          "subject": "how [similar org] automated sponsor reporting",
+          "pain_angle": "Manual reporting / no scalable process",
+          "persona": "Head of Partnerships",
+          "signal": "Competing in upcoming season",
+          "notes": "Social proof in subject line. Replace [similar org] with a relevant tier-1 reference (GIANTX, MOONTON) based on segment."
+        },
+        {
+          "id": "sl-5",
+          "subject": "re: [ORG] + [Brand] partnership",
+          "pain_angle": "New sponsor needs strong first report",
+          "persona": "Head of Partnerships",
+          "signal": "New sponsor announced",
+          "notes": "Reply-thread format gets high open rates. Use immediately after a new sponsorship announcement — timing is everything here."
+        },
+        {
+          "id": "sl-6",
+          "subject": "quick question on sponsor ROI",
+          "pain_angle": "Can't prove ROI / sponsor churn",
+          "persona": "Head of Partnerships",
+          "signal": "Any qualifying signal",
+          "notes": "Generic but reliable. Use as a fallback when no strong signal exists. Pair with a one-line question in the body."
+        },
+        {
+          "id": "sl-7",
+          "subject": "your sponsors are asking for data you don't have",
+          "pain_angle": "Sponsor asks for numbers, org has nothing credible",
+          "persona": "Head of Partnerships",
+          "signal": "New hire in partnerships",
+          "notes": "Provocative — works well with cold audiences. A/B against softer subject lines. Best for new hires who are about to face this problem for the first time."
+        },
+        {
+          "id": "sl-8",
+          "subject": "closing the loop on sponsor reporting",
+          "pain_angle": "No response to previous touches",
+          "persona": "Head of Partnerships",
+          "signal": "Any",
+          "notes": "Break-up email subject. Low-pressure, high open rate. Use only on Day 21 of sequence — never earlier."
+        }
+      ]
+    },
+    "competitive": {
+      "competitors": [
+        {
+          "id": "comp-1",
+          "name": "Blinkfire Analytics",
+          "what_they_do": "Social media analytics platform for sports and esports sponsorships. Tracks logo/brand exposure in social posts, stories, and video clips. Used by many North American esports orgs.",
+          "we_win_on": "Shikenso covers video + audio + social in one platform vs Blinkfire's social-first approach. EU-based (GDPR compliant). Better pricing for rights holders — Blinkfire is expensive and brand-focused. Faster onboarding (3-week guarantee).",
+          "they_win_on": "Stronger North American market presence. More integrations with US-based social platforms. Established brand recognition in NA esports. Some teams prefer their interface.",
+          "how_to_handle": "Ask where they track broadcast and stream visibility — Blinkfire doesn't cover live video well. If the prospect runs events or competes in leagues, that's a gap. Also ask about GDPR compliance if they're EU-based."
+        },
+        {
+          "id": "comp-2",
+          "name": "Nielsen Sports",
+          "what_they_do": "Enterprise sports media measurement. Covers TV broadcast, digital, and social. Used by major rights holders, broadcast networks, and large brand sponsors for valuation.",
+          "we_win_on": "Price — Nielsen is 10–20x more expensive and built for enterprise brands, not rights holders. Speed — Nielsen's reports take weeks, Shikenso delivers in real-time. We onboard in 3 weeks vs months-long Nielsen implementations.",
+          "they_win_on": "Brand recognition — CFOs and board members trust the Nielsen name. Broader data coverage including TV and out-of-home. Better for orgs pitching enterprise-level brand partners.",
+          "how_to_handle": "If they mention Nielsen, they're likely a larger prospect — or aspiring to be. Reframe: Nielsen is the enterprise layer brands use to validate what they already bought. Shikenso is the operational tool rights holders use to generate the data that earns those brand investments."
+        },
+        {
+          "id": "comp-3",
+          "name": "Zoomph",
+          "what_they_do": "Social media measurement and audience intelligence platform for sports sponsorships. Tracks brand exposure on social, provides audience demographic data.",
+          "we_win_on": "Video and audio tracking — Zoomph is social-only. Automated reporting delivered to sponsors directly. GDPR-compliant EU infrastructure. Simpler onboarding for smaller orgs.",
+          "they_win_on": "Audience intelligence features (fan demographics, psychographics). Good at Instagram and Twitter tracking. Some US sports league integrations.",
+          "how_to_handle": "Ask if they need to report on stream or broadcast performance — Zoomph can't do it. Most esports orgs have as much value on Twitch/YouTube as on social, so this is usually a clear win."
+        },
+        {
+          "id": "comp-4",
+          "name": "Manual tracking (Excel + screenshots)",
+          "what_they_do": "In-house process: pulling stream screenshots, estimating visibility manually, building PowerPoint decks. Common in teams with 1 partnerships person and no analytics budget.",
+          "we_win_on": "Speed (4-6 hours/sponsor/month → automated). Professionalism (live dashboards vs screenshot decks). Accuracy (AI measurement vs eyeballing). Scalability (handles 10+ sponsors at once). No human error.",
+          "they_win_on": "Free. No learning curve. Full control over what's included in the report. Some partnerships leads prefer to frame the narrative themselves.",
+          "how_to_handle": "This is the most common competitor. Don't trash it — acknowledge it works at small scale. Then ask: how long does it take per sponsor per month? What happens at renewal when the sponsor wants to compare against industry benchmarks? That usually opens the conversation."
+        }
+      ],
+      "positioning_notes": "Core positioning: Shikenso is the sponsorship analytics platform built for rights holders, not brands. Every competitor either serves brands (Nielsen, enterprise tools) or focuses on social-only (Blinkfire, Zoomph) or is just a spreadsheet.\n\nWinning positioning statement: 'We give esports organisations the same data quality as the brands they're pitching — so renewals stop being a negotiation and start being a proof of value.'\n\nDon't lead with features. Lead with the outcome: sponsors renew, new deals close faster, manual reporting disappears.\n\nKey differentiators to always mention:\n1. Video + audio + social in one platform (no stitching tools)\n2. Built for rights holders, not brands (pricing and UX reflect this)\n3. 3-week onboarding guarantee\n4. EU-based, GDPR compliant\n5. Real-time dashboards (not weekly/monthly batch reports)"
+    },
+    "objections": {
+      "objections": [
+        {
+          "id": "obj-1",
+          "objection": "We're already using [Blinkfire / Zoomph / another tool]",
+          "context": "Comes up early in the call or as a reason not to take a meeting. Often means they have something, not necessarily that it's working well.",
+          "response": "That's useful to know — how are you currently handling broadcast and stream tracking alongside that? Most tools cover social well but miss the live video side, which is often where the majority of brand visibility actually lives for esports orgs.\n\nWe could run a quick side-by-side if you're open to it — happy to pull a report on one sponsor using Shikenso so you can compare what you're currently seeing.",
+          "follow_up": "If they resist: 'Makes sense — what would need to change for you to consider a switch or an additional layer?' (Identifies the real objection underneath)"
+        },
+        {
+          "id": "obj-2",
+          "objection": "We don't have the budget right now",
+          "context": "Most common deflection — often means priority, not money. Especially likely at smaller orgs or early in the year before budgets are set.",
+          "response": "Totally fair. Can I ask — is it that the budget genuinely isn't there, or that it hasn't been allocated because sponsor reporting hasn't been a line item before?\n\nThe reason I ask: most orgs we talk to are already spending that money in headcount time — 4–6 hours per sponsor per month adds up fast. If I can show you that the cost pays for itself in time saved and one retained sponsor, does the conversation change?",
+          "follow_up": "Offer a free visibility audit on one sponsor as a proof of value before any budget conversation. That lowers the barrier and demonstrates value on their own data."
+        },
+        {
+          "id": "obj-3",
+          "objection": "Send me some information and I'll take a look",
+          "context": "Classic deferral — usually means they don't see it as urgent yet. Sending a generic deck rarely moves anything forward.",
+          "response": "Happy to — though I'd rather send something specific to [ORG] than a generic deck. Can I ask two quick questions first: how many active sponsors are you currently managing, and how are you handling their monthly reporting right now?\n\nThat way I can send you a sample report that actually looks like what you'd get from Shikenso — not just a product overview.",
+          "follow_up": "If they answer the questions, you've re-engaged them in a conversation. If they still want the deck first, send a one-pager (not a full pitch) with a specific CTA to review the sample report."
+        },
+        {
+          "id": "obj-4",
+          "objection": "We handle reporting in-house, it works fine",
+          "context": "Comes from partnerships leads who are proud of their process or don't want to admit it's a problem. Usually untrue under the surface.",
+          "response": "Good to hear — what does that look like currently? Specifically the video visibility piece — how are you capturing brand exposure across streams and broadcasts?\n\nAsking because that's usually the part that gets manual and slow, even when the rest of the process is solid. I'm not assuming you have a problem — just want to understand where you are.",
+          "follow_up": "If they describe a manual process (spreadsheets, screenshots), reflect it back: 'So you're probably spending X hours per sponsor — is that sustainable as you scale to more sponsors?' Don't push — plant the seed."
+        },
+        {
+          "id": "obj-5",
+          "objection": "We're too small / not the right fit right now",
+          "context": "Self-disqualification — often means they're unsure about the ROI or think the tool is for bigger orgs. May also mean genuinely not ICP.",
+          "response": "Totally understand — can I ask, how many brand sponsors are you currently working with? We work with orgs ranging from 2 active sponsors upward, and our pricing is built specifically for rights holders at your stage, not enterprise brands.\n\nIf you have even 2–3 sponsors and you're doing their reporting manually, the maths usually works out — but I don't want to assume. What would 'the right fit' look like for you?",
+          "follow_up": "If genuinely too small (1 sponsor, pre-revenue on commercial side), acknowledge it honestly: 'You might be right — let's reconnect when you've got 2–3 sponsors running in parallel. Happy to check back in [timeframe].'"
         }
       ]
     },

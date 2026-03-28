@@ -62,11 +62,21 @@ export interface SignalsData {
   disqualification_criteria: string
 }
 
+export interface SubjectLine {
+  id: string
+  subject: string
+  pain_angle: string
+  persona: string
+  signal: string
+  notes: string
+}
+
 export interface MessagingRow {
   id: string
   segment: string
   persona: string
   pain: string
+  source_quote: string
   hook: string
   channel: string
   social_proof: string
@@ -76,6 +86,33 @@ export interface MessagingRow {
 
 export interface MessagingData {
   matrix: MessagingRow[]
+  subject_lines: SubjectLine[]
+}
+
+export interface Competitor {
+  id: string
+  name: string
+  what_they_do: string
+  we_win_on: string
+  they_win_on: string
+  how_to_handle: string
+}
+
+export interface CompetitiveData {
+  competitors: Competitor[]
+  positioning_notes: string
+}
+
+export interface Objection {
+  id: string
+  objection: string
+  context: string
+  response: string
+  follow_up: string
+}
+
+export interface ObjectionsData {
+  objections: Objection[]
 }
 
 export interface SequenceStep {
@@ -111,6 +148,8 @@ export interface WorkspaceData {
   market_design: MarketDesignData
   signals: SignalsData
   messaging: MessagingData
+  competitive: CompetitiveData
+  objections: ObjectionsData
   sequences: SequencesData
   launch_plan: LaunchPlanData
 }
@@ -123,7 +162,9 @@ export const defaultWorkspaceData: WorkspaceData = {
     personas: [],
   },
   signals: { signal_types: [], qualification_criteria: '', disqualification_criteria: '' },
-  messaging: { matrix: [] },
+  messaging: { matrix: [], subject_lines: [] },
+  competitive: { competitors: [], positioning_notes: '' },
+  objections: { objections: [] },
   sequences: { steps: [], notes: '' },
   launch_plan: { weekly_targets: [], success_metrics: '', ramp_notes: '' },
 }
