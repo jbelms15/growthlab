@@ -4,14 +4,11 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import type { Campaign } from '@/lib/types'
-import { PLAYBOOK_SECTIONS, type PlaybookSection } from '@/lib/types'
 
 export default function CampaignPage() {
   const { id } = useParams<{ id: string }>()
   const [campaign, setCampaign] = useState<Campaign | null>(null)
   const [stats, setStats] = useState({ companies: 0, active: 0, touchpoints: 0, meetings: 0 })
-  const [exporting, setExporting] = useState(false)
-  const [exported, setExported] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -33,62 +30,6 @@ export default function CampaignPage() {
     load()
   }, [id])
 
-  const exportToPlaybook = async () => {
-    if (!campaign) return
-    setExporting(true)
-    const wd = campaign.wizard_data || {}
-    const entries: { campaign_id: string; section: PlaybookSection; title: string; content: string | null }[] = []
-
-    if (wd.signals?.trim()) {
-      entries.push({
-        campaign_id: id,
-        section: 'Observation & Signals',
-        title: `Buying signals — ${campaign.name}`,
-        content: wd.signals,
-      })
-    }
-    if (wd.observation_template?.trim()) {
-      entries.push({
-        campaign_id: id,
-        section: 'Observation & Signals',
-        title: `Observation template — ${campaign.name}`,
-        content: wd.observation_template,
-      })
-    }
-    if (wd.messaging) {
-      const { hook, body, cta, channel } = wd.messaging
-      entries.push({
-        campaign_id: id,
-        section: 'Messaging Frameworks',
-        title: `Messaging framework — ${campaign.name}`,
-        content: [
-          hook && `Hook: ${hook}`,
-          body && `Body: ${body}`,
-          cta && `CTA: ${cta}`,
-          channel && `Channel: ${channel}`,
-        ].filter(Boolean).join('\n\n') || null,
-      })
-    }
-    if (wd.sequence?.length) {
-      entries.push({
-        campaign_id: id,
-        section: 'Sequences & Cadence',
-        title: `Sequence — ${campaign.name}`,
-        content: wd.sequence
-          .map((s: any) => `Day ${s.day} (${s.channel}): ${s.action}`)
-          .join('\n'),
-      })
-    }
-
-    if (entries.length > 0) {
-      await supabase.from('playbook_entries').insert(entries)
-    }
-
-    setExporting(false)
-    setExported(true)
-    setTimeout(() => setExported(false), 3000)
-  }
-
   if (!campaign) return <p className="text-gray-400 text-sm">Loading...</p>
 
   return (
@@ -102,21 +43,12 @@ export default function CampaignPage() {
             <h1 className="text-2xl font-bold text-gray-900">{campaign.name}</h1>
             {campaign.goal && <p className="text-gray-400 mt-1">{campaign.goal}</p>}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={exportToPlaybook}
-              disabled={exporting}
-              className="text-sm border border-gray-200 px-3 py-1.5 rounded-md text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {exporting ? 'Saving...' : exported ? '✓ Saved to Playbook' : '→ Save strategy to Playbook'}
-            </button>
-            <Link
-              href={`/campaigns/${id}/wizard`}
-              className="text-sm border border-gray-200 px-3 py-1.5 rounded-md text-gray-600 hover:bg-gray-50"
-            >
-              Edit Strategy
-            </Link>
-          </div>
+          <Link
+            href={`/campaigns/${id}/wizard`}
+            className="text-sm border border-gray-200 px-3 py-1.5 rounded-md text-gray-600 hover:bg-gray-50"
+          >
+            Edit Details
+          </Link>
         </div>
       </div>
 
@@ -148,13 +80,13 @@ export default function CampaignPage() {
           },
           {
             href: `/campaigns/${id}/wizard`,
-            label: 'Strategy',
-            desc: 'ICP, personas, messaging, sequence',
+            label: 'Campaign Setup',
+            desc: 'Name, goal, segment, daily targets',
           },
           {
             href: `/playbook?campaign=${id}`,
             label: 'Playbook',
-            desc: 'Learnings for this campaign',
+            desc: 'Execution learnings for this campaign',
           },
         ].map(link => (
           <Link
@@ -176,13 +108,11 @@ export default function CampaignPage() {
             href: `/campaigns/${id}/plan`,
             label: '✦ Monday Plan',
             desc: 'AI-assisted weekly plan with daily targets',
-            accent: true,
           },
           {
             href: `/campaigns/${id}/review`,
             label: '✦ Friday Review',
             desc: 'AI review with data + playbook learnings',
-            accent: true,
           },
         ].map(link => (
           <Link

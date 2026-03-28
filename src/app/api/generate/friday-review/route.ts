@@ -11,15 +11,25 @@ export async function POST(req: Request) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const [campRes, icpRes, segsRes] = await Promise.all([
+  const [campRes, workspaceRes] = await Promise.all([
     supabase.from('campaigns').select('name, goal, wizard_data').eq('id', campaign_id).single(),
-    supabase.from('icp').select('industry, company_size, geography').eq('campaign_id', campaign_id).maybeSingle(),
-    supabase.from('segments').select('name').eq('campaign_id', campaign_id).order('sort_order'),
+    supabase.from('client_workspaces').select('data').eq('client_name', 'Shikenso').maybeSingle(),
   ])
 
   const campaign = campRes.data
-  const icp = icpRes.data
-  const segments = segsRes.data || []
+  const ws = workspaceRes.data?.data
+  const wd = campaign?.wizard_data || {}
+
+  const icp = ws?.market_design?.icp
+  const segments: any[] = ws?.market_design?.segments || []
+
+  const icpText = icp
+    ? `${icp.industry || '—'}, ${icp.company_size || '—'}, ${icp.geography || '—'}`
+    : 'N/A'
+
+  const segmentsText = segments.map(s => s.name).join(', ') || 'N/A'
+  const targetSegment: string = wd.target_segment || 'Not set'
+  const targetPersona: string = wd.target_persona || 'Not set'
 
   const replyRate =
     week_data.totalTouchpoints > 0
@@ -39,8 +49,9 @@ Expected outcomes: ${week_plan.expected_outcomes || 'Not set'}`
 
 CAMPAIGN: ${campaign?.name}
 GOAL: ${campaign?.goal || 'Not defined'}
-ICP: ${icp ? `${icp.industry || '—'}, ${icp.company_size || '—'}, ${icp.geography || '—'}` : 'N/A'}
-Segments: ${segments.map((s: any) => s.name).join(', ') || 'N/A'}
+ICP: ${icpText}
+All segments: ${segmentsText}
+This campaign's target: ${targetSegment} — ${targetPersona}
 
 MONDAY'S PLAN:
 ${planText}
@@ -79,8 +90,8 @@ Generate a structured Friday Review using EXACTLY these ## section headers:
 ## Playbook Learnings
 [1-3 validated learnings in exactly this format for each:
 **Learning:** [what you learned this week that should be captured]
-**Section:** [one of: ICP & Segmentation / Personas / Pain Mapping / List Building / Observation & Signals / Messaging Frameworks / Sequences & Cadence / Performance Benchmarks]
-**Action:** [how to document or apply this in the playbook]]
+**Section:** [one of: What Worked / Hook Variations / Segment Insights / Reply Patterns / Meeting Notes / Performance Benchmarks]
+**Action:** [how to document or apply this going forward]]
 
 Be specific and honest. Every observation must be grounded in the actual data provided.`
 
@@ -95,7 +106,6 @@ Be specific and honest. Every observation must be grounded in the actual data pr
           'You are a senior B2B outbound strategist reviewing a week of outbound execution. Be direct, specific, and honest — including about underperformance. Ground every observation in the actual data. Use exactly the ## section headers requested.',
         messages: [{ role: 'user', content: prompt }],
       })
-
       for await (const chunk of response) {
         if (
           chunk.type === 'content_block_delta' &&

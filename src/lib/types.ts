@@ -1,17 +1,6 @@
 export interface WizardData {
-  signals?: string
-  observation_template?: string
-  messaging?: {
-    hook: string
-    body: string
-    cta: string
-    channel: string
-  }
-  sequence?: Array<{
-    day: number
-    channel: string
-    action: string
-  }>
+  target_segment?: string
+  target_persona?: string
 }
 
 export interface Campaign {
@@ -132,13 +121,11 @@ export interface WeeklyReport {
 }
 
 export const PLAYBOOK_SECTIONS = [
-  'ICP & Segmentation',
-  'Personas',
-  'Pain Mapping',
-  'List Building',
-  'Observation & Signals',
-  'Messaging Frameworks',
-  'Sequences & Cadence',
+  'What Worked',
+  'Hook Variations',
+  'Segment Insights',
+  'Reply Patterns',
+  'Meeting Notes',
   'Performance Benchmarks',
 ] as const
 

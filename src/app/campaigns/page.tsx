@@ -67,7 +67,7 @@ export default function CampaignsPage() {
                   href={`/campaigns/${c.id}/wizard`}
                   className="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-md hover:bg-gray-50"
                 >
-                  Strategy
+                  Edit Details
                 </Link>
                 <Link
                   href={`/campaigns/${c.id}`}

@@ -21,11 +21,9 @@ export async function POST(req: Request) {
 
   const weekStart = getWeekStart()
 
-  const [campRes, icpRes, segsRes, personasRes, lastReviewRes, activeRes] = await Promise.all([
+  const [campRes, workspaceRes, lastReviewRes, activeRes] = await Promise.all([
     supabase.from('campaigns').select('*').eq('id', campaign_id).single(),
-    supabase.from('icp').select('*').eq('campaign_id', campaign_id).maybeSingle(),
-    supabase.from('segments').select('*').eq('campaign_id', campaign_id).order('sort_order'),
-    supabase.from('personas').select('*, pains(*)').eq('campaign_id', campaign_id),
+    supabase.from('client_workspaces').select('data').eq('client_name', 'Shikenso').maybeSingle(),
     supabase
       .from('weekly_reports')
       .select('*')
@@ -47,36 +45,84 @@ export async function POST(req: Request) {
     .gte('date', weekStart)
 
   const campaign = campRes.data
-  const icp = icpRes.data
-  const segments = segsRes.data || []
-  const personas = personasRes.data || []
+  const ws = workspaceRes.data?.data
   const lastReview = lastReviewRes.data
   const activeTargets = activeRes.count || 0
   const tps = weekTps || []
-
   const wd = campaign?.wizard_data || {}
 
+  // Pull strategy context from workspace
+  const icp = ws?.market_design?.icp
+  const allSegments: any[] = ws?.market_design?.segments || []
+  const allPersonas: any[] = ws?.market_design?.personas || []
+  const signals: any[] = ws?.signals?.signal_types || []
+  const messagingMatrix: any[] = ws?.messaging?.matrix || []
+  const subjectLines: any[] = ws?.messaging?.subject_lines || []
+  const sequences: any[] = ws?.sequences?.steps || []
+
+  // Campaign-specific targeting
+  const targetSegmentName: string = wd.target_segment || ''
+  const targetPersonaName: string = wd.target_persona || ''
+  const targetSegment = allSegments.find(s => s.name === targetSegmentName)
+  const targetPersona = allPersonas.find(p => p.title === targetPersonaName)
+  const relevantMessaging =
+    messagingMatrix.find(m => m.segment === targetSegmentName || m.persona === targetPersonaName) ||
+    messagingMatrix[0]
+
   const icpText = icp
-    ? `Industry: ${icp.industry || '—'} | Size: ${icp.company_size || '—'} | Geography: ${icp.geography || '—'} | Stage: ${icp.revenue_range || '—'}`
+    ? `Industry: ${icp.industry || '—'} | Size: ${icp.company_size || '—'} | Geography: ${icp.geography || '—'} | Stage: ${icp.stage || '—'} | Revenue: ${icp.revenue_range || '—'}\nAnti-ICP: ${icp.anti_icp || '—'}`
     : 'Not defined'
 
-  const segmentsText =
-    segments.map((s: any) => `- ${s.name}${s.why ? `: ${s.why}` : ''}`).join('\n') ||
-    'Not defined'
+  const targetingText = targetSegment
+    ? [
+        `Segment: ${targetSegment.name}`,
+        `Why priority: ${targetSegment.why_priority}`,
+        `Persona: ${targetPersonaName || 'Not specified'}`,
+        targetPersona
+          ? [
+              `Goals: ${targetPersona.goals}`,
+              `Frustrations: ${targetPersona.frustrations}`,
+              `Pains:\n${(targetPersona.pains || [])
+                .map(
+                  (p: any) =>
+                    `  • ${p.pain}\n    Impact: ${p.business_impact || '—'}\n    Workaround today: ${p.workaround || '—'}`
+                )
+                .join('\n')}`,
+            ].join('\n')
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n')
+    : `Segment: ${targetSegmentName || 'Not set'}\nPersona: ${targetPersonaName || 'Not set'}`
 
-  const personasText =
-    personas
-      .map(
-        (p: any) =>
-          `- ${p.title} (${p.seniority || 'N/A'})\n  Goals: ${p.goals || 'N/A'}\n  Frustrations: ${p.frustrations || 'N/A'}\n  Pains:\n${(p.pains || []).map((x: any) => `    • ${x.pain}${x.consequence ? `\n      Consequence: ${x.consequence}` : ''}${x.workaround ? `\n      Workaround today: ${x.workaround}` : ''}`).join('\n') || '    N/A'}`
+  const messagingText = relevantMessaging
+    ? [
+        `Hook: ${relevantMessaging.hook}`,
+        `Source quote: ${relevantMessaging.source_quote || '—'}`,
+        `Social proof: ${relevantMessaging.social_proof || '—'}`,
+        `CTA soft: ${relevantMessaging.cta_soft}`,
+        `CTA hard: ${relevantMessaging.cta_hard}`,
+      ].join('\n')
+    : 'Not defined'
+
+  const subjectLinesText =
+    subjectLines
+      .filter(
+        sl => !targetPersonaName || sl.persona === targetPersonaName || !sl.persona
       )
+      .slice(0, 3)
+      .map(sl => `• "${sl.subject}" — ${sl.pain_angle} (signal: ${sl.signal})`)
       .join('\n') || 'Not defined'
 
-  const messagingText = wd.messaging
-    ? `Hook: ${wd.messaging.hook}\nBody: ${wd.messaging.body}\nCTA: ${wd.messaging.cta}\nChannel: ${wd.messaging.channel}`
-    : 'Not defined'
+  const signalsText = signals.length
+    ? signals
+        .map(s => `• ${s.name}: ${s.what_it_means}\n  Find via: ${s.where_to_find}`)
+        .join('\n')
+    : ws?.signals?.qualification_criteria || 'Not defined'
 
-  const signalsText = wd.signals || 'Not defined'
+  const sequenceText = sequences.length
+    ? sequences.map(s => `Day ${s.day} (${s.channel}): ${s.action}`).join('\n')
+    : 'Not defined'
 
   const lastReviewText = lastReview
     ? `Week of ${lastReview.week_start}:
@@ -94,17 +140,20 @@ GOAL: ${campaign?.goal || 'Not defined'}
 ICP:
 ${icpText}
 
-SEGMENTS:
-${segmentsText}
+THIS CAMPAIGN'S TARGET:
+${targetingText}
 
-PERSONAS & PAINS:
-${personasText}
-
-CURRENT MESSAGING:
+MESSAGING FOR THIS SEGMENT/PERSONA:
 ${messagingText}
 
-BUYING SIGNALS:
+SUBJECT LINE VARIANTS TO TEST:
+${subjectLinesText}
+
+BUYING SIGNALS TO WATCH:
 ${signalsText}
+
+OUTREACH SEQUENCE:
+${sequenceText}
 
 CURRENT STATUS:
 - Active/prospect targets in list: ${activeTargets}
@@ -148,7 +197,6 @@ Be direct and specific. Ground every recommendation in the campaign data and pre
           'You are a senior B2B outbound strategist. Generate structured, specific, actionable outbound plans. Use exactly the ## section headers requested. Be direct, avoid generic advice, and ground every recommendation in the provided data.',
         messages: [{ role: 'user', content: prompt }],
       })
-
       for await (const chunk of response) {
         if (
           chunk.type === 'content_block_delta' &&

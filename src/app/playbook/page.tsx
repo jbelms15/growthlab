@@ -5,13 +5,11 @@ import { supabase } from '@/lib/supabase'
 import { PLAYBOOK_SECTIONS, type PlaybookEntry, type PlaybookSection } from '@/lib/types'
 
 const sectionColors: Record<string, string> = {
-  'ICP & Segmentation': 'bg-blue-100 text-blue-700',
-  'Personas': 'bg-purple-100 text-purple-700',
-  'Pain Mapping': 'bg-red-100 text-red-700',
-  'List Building': 'bg-orange-100 text-orange-700',
-  'Observation & Signals': 'bg-yellow-100 text-yellow-700',
-  'Messaging Frameworks': 'bg-green-100 text-green-700',
-  'Sequences & Cadence': 'bg-teal-100 text-teal-700',
+  'What Worked': 'bg-green-100 text-green-700',
+  'Hook Variations': 'bg-blue-100 text-blue-700',
+  'Segment Insights': 'bg-purple-100 text-purple-700',
+  'Reply Patterns': 'bg-yellow-100 text-yellow-700',
+  'Meeting Notes': 'bg-teal-100 text-teal-700',
   'Performance Benchmarks': 'bg-indigo-100 text-indigo-700',
 }
 
@@ -110,7 +108,7 @@ function PlaybookContent() {
         </button>
       </div>
       <p className="text-sm text-gray-400 mb-5">
-        What&apos;s working. What to repeat. Your living outbound manual.
+        What&apos;s working in execution. Capture it here as you learn it.
       </p>
 
       {/* Campaign filter */}
