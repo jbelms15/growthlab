@@ -126,7 +126,7 @@ export async function POST(req: Request) {
 
   const lastReviewText = lastReview
     ? `Week of ${lastReview.week_start}:
-- Touchpoints: ${lastReview.companies_contacted} | Replies: ${lastReview.replies} | Meetings: ${lastReview.meetings}
+- Touchpoints: ${lastReview.companies_contacted} | Replies: ${lastReview.replies} | Meetings: ${lastReview.meetings} | SQLs: ${lastReview.sqls ?? 0}
 - Recommendations: ${lastReview.recommendations || 'N/A'}
 - Key insights: ${lastReview.key_insights || 'N/A'}
 - What worked: ${lastReview.what_worked || 'N/A'}`
@@ -160,6 +160,8 @@ CURRENT STATUS:
 - Touchpoints this week so far: ${tps.length}
 - Replies this week: ${tps.filter((t: any) => t.status === 'replied').length}
 - Meetings this week: ${tps.filter((t: any) => t.status === 'meeting').length}
+
+NORTH STAR: 6 SQLs/month (SQL = meeting that passes qualification). Meetings are a leading indicator — SQLs are the metric that matters.
 
 LAST FRIDAY'S REVIEW:
 ${lastReviewText}

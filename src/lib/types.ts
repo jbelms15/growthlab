@@ -109,6 +109,7 @@ export interface WeeklyReport {
   companies_contacted: number
   replies: number
   meetings: number
+  sqls: number
   what_worked: string | null
   what_to_change: string | null
   performance_analysis: string | null

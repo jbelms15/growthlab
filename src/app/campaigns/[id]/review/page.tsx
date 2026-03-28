@@ -12,6 +12,7 @@ interface WeekData {
   totalTouchpoints: number
   replies: number
   meetings: number
+  sqls: number
   noReplies: number
 }
 
@@ -117,6 +118,7 @@ export default function FridayReviewPage() {
         totalTouchpoints: tps.length,
         replies: tps.filter((t: any) => t.status === 'replied').length,
         meetings: tps.filter((t: any) => t.status === 'meeting').length,
+        sqls: 0,
         noReplies: tps.filter((t: any) => t.status === 'no_reply').length,
       })
 
@@ -150,6 +152,7 @@ export default function FridayReviewPage() {
           week_data: weekData,
           week_plan: weekPlan,
           qualitative,
+          sql_target: 6,
         }),
       })
       const reader = response.body!.getReader()
@@ -177,6 +180,7 @@ export default function FridayReviewPage() {
       companies_contacted: weekData?.totalTouchpoints || 0,
       replies: weekData?.replies || 0,
       meetings: weekData?.meetings || 0,
+      sqls: weekData?.sqls || 0,
       what_worked: qualitative.what_worked,
       what_to_change: qualitative.what_didnt,
       performance_analysis: review.performance_analysis,
@@ -240,10 +244,6 @@ export default function FridayReviewPage() {
     setTimeout(() => setPushed(false), 3000)
   }
 
-  const replyRate =
-    weekData && weekData.totalTouchpoints > 0
-      ? Math.round(((weekData.replies + weekData.meetings) / weekData.totalTouchpoints) * 100)
-      : 0
 
   const weekLabel = new Date(weekStart + 'T12:00:00').toLocaleDateString('en-US', {
     month: 'long', day: 'numeric',
@@ -284,17 +284,41 @@ export default function FridayReviewPage() {
       {/* ── Step 1: Week Data ── */}
       {step === 'data' && weekData && (
         <div className="space-y-6">
-          <div className="grid grid-cols-4 gap-3">
-            <DataCard label="Touchpoints" value={weekData.totalTouchpoints}
-              sub={weekPlan ? `target: ${(weekPlan.daily_new_contacts + weekPlan.daily_followups) * 5}` : undefined} />
-            <DataCard label="Replies" value={weekData.replies} />
-            <DataCard label="Meetings" value={weekData.meetings} accent={weekData.meetings > 0} />
-            <DataCard label="Reply rate" value={`${replyRate}%`} accent={replyRate >= 10} />
-          </div>
+          <p className="text-sm text-gray-500">
+            Enter your numbers for the week. Pull from HubSpot if that&apos;s where outreach ran.
+          </p>
 
-          <div className="grid grid-cols-2 gap-3">
-            <DataCard label="New companies added" value={weekData.newCompanies} />
-            <DataCard label="No replies" value={weekData.noReplies} />
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { key: 'totalTouchpoints', label: 'Touchpoints sent' },
+              { key: 'replies', label: 'Replies' },
+              { key: 'meetings', label: 'Meetings booked' },
+              { key: 'sqls', label: 'SQLs (qualified meetings)', accent: true },
+              { key: 'newCompanies', label: 'New companies prospected' },
+              { key: 'noReplies', label: 'No replies' },
+            ].map(field => (
+              <div key={field.key}>
+                <label className={`block text-xs font-medium mb-1.5 ${
+                  (field as any).accent ? 'text-indigo-700' : 'text-gray-500'
+                }`}>
+                  {field.label}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={weekData[field.key as keyof WeekData]}
+                  onChange={e => setWeekData(prev => prev
+                    ? { ...prev, [field.key]: Number(e.target.value) }
+                    : prev
+                  )}
+                  className={`w-full text-sm border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-200 ${
+                    (field as any).accent
+                      ? 'border-indigo-200 bg-indigo-50/40'
+                      : 'border-gray-200 bg-white'
+                  }`}
+                />
+              </div>
+            ))}
           </div>
 
           {weekPlan ? (
@@ -494,10 +518,6 @@ function PastReviewCard({ review }: { review: any }) {
   const label = new Date(review.week_start + 'T12:00:00').toLocaleDateString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
   })
-  const replyRate = review.companies_contacted > 0
-    ? Math.round(((review.replies + review.meetings) / review.companies_contacted) * 100)
-    : 0
-
   return (
     <div className="border border-gray-200 rounded-xl overflow-hidden">
       <button
@@ -507,7 +527,7 @@ function PastReviewCard({ review }: { review: any }) {
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-gray-700">Week of {label}</span>
           <span className="text-xs text-gray-400">
-            {review.companies_contacted} touches · {review.replies} replies · {review.meetings} meetings · {replyRate}% reply rate
+            {review.companies_contacted} touches · {review.replies} replies · {review.meetings} meetings · {review.sqls || 0} SQLs
           </span>
         </div>
         <span className="text-gray-300 text-xs">{expanded ? '▲' : '▼'}</span>
@@ -544,18 +564,3 @@ function PastReviewCard({ review }: { review: any }) {
   )
 }
 
-function DataCard({
-  label, value, sub, accent,
-}: {
-  label: string; value: string | number; sub?: string; accent?: boolean
-}) {
-  return (
-    <div className="border border-gray-200 rounded-xl p-4">
-      <div className={`text-2xl font-bold ${accent ? 'text-green-600' : 'text-gray-900'}`}>
-        {value}
-      </div>
-      <div className="text-xs text-gray-400 mt-1">{label}</div>
-      {sub && <div className="text-xs text-gray-300 mt-0.5">{sub}</div>}
-    </div>
-  )
-}

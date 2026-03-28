@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
 
 export async function POST(req: Request) {
-  const { campaign_id, week_data, week_plan, qualitative } = await req.json()
+  const { campaign_id, week_data, week_plan, qualitative, sql_target = 6 } = await req.json()
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -57,10 +57,11 @@ MONDAY'S PLAN:
 ${planText}
 
 ACTUAL WEEK DATA:
-- New companies added to list: ${week_data.newCompanies}
+- New companies prospected: ${week_data.newCompanies}
 - Total touchpoints sent: ${week_data.totalTouchpoints}
 - Replies received: ${week_data.replies}
 - Meetings booked: ${week_data.meetings}
+- SQLs (qualified meetings): ${week_data.sqls ?? 0} — north star target is ${sql_target}/month
 - No replies: ${week_data.noReplies}
 - Overall reply rate: ${replyRate}%
 
