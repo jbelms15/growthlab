@@ -1,142 +1,17 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import {
+  type WorkspaceData, type FoundationData, type MarketDesignData, type ICPData,
+  type SignalsData, type SignalType, type MessagingData, type MessagingRow,
+  type SequencesData, type SequenceStep, type LaunchPlanData, type WeeklyTarget,
+  type SegmentItem, type Persona, type Pain,
+  defaultWorkspaceData,
+} from '@/lib/workspace-types'
 
 const CLIENT_NAME = 'Shikenso'
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface FoundationData {
-  product_knowledge: string
-  inbound_analysis: string
-  buyer_language: string
-  case_studies: string
-}
-
-interface ICPData {
-  industry: string
-  company_size: string
-  geography: string
-  stage: string
-  revenue_range: string
-  anti_icp: string
-  notes: string
-}
-
-interface Pain {
-  id: string
-  pain: string
-  business_impact: string
-  consequence: string
-  workaround: string
-}
-
-interface Persona {
-  id: string
-  segment_id: string
-  title: string
-  seniority: string
-  goals: string
-  frustrations: string
-  triggers: string
-  pains: Pain[]
-}
-
-interface SegmentItem {
-  id: string
-  name: string
-  description: string
-  why_priority: string
-  priority_rank: number
-}
-
-interface MarketDesignData {
-  icp: ICPData
-  segments: SegmentItem[]
-  personas: Persona[]
-}
-
-interface SignalType {
-  id: string
-  name: string
-  description: string
-  where_to_find: string
-  what_it_means: string
-}
-
-interface SignalsData {
-  signal_types: SignalType[]
-  qualification_criteria: string
-  disqualification_criteria: string
-}
-
-interface MessagingRow {
-  id: string
-  segment: string
-  persona: string
-  pain: string
-  hook: string
-  channel: string
-  social_proof: string
-  cta_soft: string
-  cta_hard: string
-}
-
-interface MessagingData {
-  matrix: MessagingRow[]
-}
-
-interface SequenceStep {
-  id: string
-  day: number
-  channel: string
-  action: string
-  content: string
-}
-
-interface SequencesData {
-  steps: SequenceStep[]
-  notes: string
-}
-
-interface WeeklyTarget {
-  id: string
-  week: string
-  new_contacts: number
-  follow_ups: number
-  meetings_target: number
-  focus: string
-}
-
-interface LaunchPlanData {
-  weekly_targets: WeeklyTarget[]
-  success_metrics: string
-  ramp_notes: string
-}
-
-interface WorkspaceData {
-  foundation: FoundationData
-  market_design: MarketDesignData
-  signals: SignalsData
-  messaging: MessagingData
-  sequences: SequencesData
-  launch_plan: LaunchPlanData
-}
-
-// ─── Defaults ────────────────────────────────────────────────────────────────
-
-const defaultData: WorkspaceData = {
-  foundation: { product_knowledge: '', inbound_analysis: '', buyer_language: '', case_studies: '' },
-  market_design: {
-    icp: { industry: '', company_size: '', geography: '', stage: '', revenue_range: '', anti_icp: '', notes: '' },
-    segments: [],
-    personas: [],
-  },
-  signals: { signal_types: [], qualification_criteria: '', disqualification_criteria: '' },
-  messaging: { matrix: [] },
-  sequences: { steps: [], notes: '' },
-  launch_plan: { weekly_targets: [], success_metrics: '', ramp_notes: '' },
-}
+const defaultData = defaultWorkspaceData
 
 // ─── Phase config ─────────────────────────────────────────────────────────────
 
@@ -215,9 +90,14 @@ export default function StrategyPage() {
           <h1 className="text-2xl font-bold text-gray-900">Strategy Workspace</h1>
           <p className="text-sm text-gray-400 mt-0.5">{CLIENT_NAME} — outbound system design</p>
         </div>
-        <span className="text-xs text-gray-400 mt-1.5">
-          {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : ''}
-        </span>
+        <div className="flex items-center gap-3 mt-1">
+          <span className="text-xs text-gray-400">
+            {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'saved' ? 'Saved ✓' : ''}
+          </span>
+          <Link href="/strategy/brief" className="text-sm px-3 py-1.5 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">
+            View Brief →
+          </Link>
+        </div>
       </div>
 
       {/* Phase tabs */}
