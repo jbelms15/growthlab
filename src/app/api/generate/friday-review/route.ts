@@ -89,9 +89,14 @@ Generate a structured Friday Review using EXACTLY these ## section headers:
 [3 numbered, specific, actionable recommendations for Monday's plan — concrete enough to act on immediately]
 
 ## Playbook Learnings
-[1-3 validated learnings in exactly this format for each:
+[1-3 learnings in exactly this format for each. Assign a Status based on evidence:
+- Hypothesis: observed once, not yet confirmed
+- In Testing: seen across 2+ weeks or multiple segments, actively testing
+- Locked: consistent across 3+ weeks of data, validated — recommend capturing permanently
+
 **Learning:** [what you learned this week that should be captured]
 **Section:** [one of: What Worked / Hook Variations / Segment Insights / Reply Patterns / Meeting Notes / Performance Benchmarks]
+**Status:** [Hypothesis / In Testing / Locked]
 **Action:** [how to document or apply this going forward]]
 
 Be specific and honest. Every observation must be grounded in the actual data provided.`

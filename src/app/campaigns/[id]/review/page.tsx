@@ -236,7 +236,7 @@ export default function FridayReviewPage() {
         buildingQual.decisions ? `\nDecisions made:\n${buildingQual.decisions}` : '',
       ].filter(Boolean).join('')
       await supabase.from('playbook_entries').upsert(
-        { campaign_id: id, section: 'Strategic Decisions', title, content },
+        { campaign_id: id, section: 'Strategic Decisions', title, content, status: 'hypothesis' },
         { onConflict: 'campaign_id,title' }
       )
     }
@@ -258,10 +258,12 @@ export default function FridayReviewPage() {
     const entries = blocks.map(block => {
       const learningMatch = block.match(/^([\s\S]*?)(?:\*\*Section:\*\*|$)/i)
       const sectionMatch = block.match(/\*\*Section:\*\*\s*([^\n*]+)/i)
+      const statusMatch = block.match(/\*\*Status:\*\*\s*([^\n*]+)/i)
       const actionMatch = block.match(/\*\*Action:\*\*\s*([\s\S]*?)$/i)
 
       const learning = learningMatch ? learningMatch[1].trim() : block.trim()
       const sectionRaw = sectionMatch ? sectionMatch[1].trim() : ''
+      const statusRaw = statusMatch ? statusMatch[1].trim().toLowerCase() : ''
       const action = actionMatch ? actionMatch[1].trim() : ''
 
       const section: PlaybookSection =
@@ -270,11 +272,17 @@ export default function FridayReviewPage() {
           sectionRaw.toLowerCase().includes(s.toLowerCase().split(' ')[0].toLowerCase())
         ) as PlaybookSection) || 'Performance Benchmarks'
 
+      const status: 'hypothesis' | 'in_testing' | 'locked' =
+        statusRaw.includes('locked') ? 'locked'
+        : statusRaw.includes('testing') ? 'in_testing'
+        : 'hypothesis'
+
       return {
         campaign_id: id,
         section,
         title: learning.split('\n')[0].replace(/^[-•]\s*/, '').slice(0, 200) || 'Learning',
         content: [learning, action ? `Action: ${action}` : ''].filter(Boolean).join('\n\n') || null,
+        status,
       }
     })
 

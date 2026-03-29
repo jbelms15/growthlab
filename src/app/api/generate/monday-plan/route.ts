@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       .in('status', ['prospect', 'active']),
     supabase
       .from('playbook_entries')
-      .select('section, title, content')
+      .select('section, title, content, status')
       .eq('campaign_id', campaign_id)
       .in('section', ['What Worked', 'Strategic Decisions'])
       .order('created_at', { ascending: false })
@@ -134,7 +134,11 @@ export async function POST(req: Request) {
   const playbookEntries = playbookRes.data || []
   const playbookText = playbookEntries.length
     ? playbookEntries
-        .map(e => `[${e.section}] ${e.title}${e.content ? ': ' + e.content.slice(0, 200) : ''}`)
+        .map(e => {
+          const status = e.status || 'hypothesis'
+          const statusLabel = status === 'locked' ? '[LOCKED ✓]' : status === 'in_testing' ? '[In Testing]' : '[Hypothesis]'
+          return `${statusLabel} [${e.section}] ${e.title}${e.content ? ': ' + e.content.slice(0, 200) : ''}`
+        })
         .join('\n')
     : 'No playbook entries yet.'
 

@@ -134,6 +134,8 @@ export const PLAYBOOK_SECTIONS = [
 
 export type PlaybookSection = typeof PLAYBOOK_SECTIONS[number]
 
+export type PlaybookStatus = 'hypothesis' | 'in_testing' | 'locked'
+
 export interface PlaybookEntry {
   id: string
   campaign_id: string | null
@@ -141,5 +143,6 @@ export interface PlaybookEntry {
   section: PlaybookSection | null
   title: string
   content: string | null
+  status: PlaybookStatus
   created_at: string
 }
