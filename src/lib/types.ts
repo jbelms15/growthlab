@@ -1,6 +1,7 @@
 export interface WizardData {
   target_segment?: string
   target_persona?: string
+  phase?: 'building' | 'executing'
 }
 
 export interface Campaign {

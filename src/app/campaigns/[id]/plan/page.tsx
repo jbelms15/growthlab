@@ -23,6 +23,8 @@ function getWeekStart() {
   return d.toISOString().split('T')[0]
 }
 
+// ── Execution plan parser ─────────────────────────────────────────────────────
+
 function parsePlan(text: string, defaultNew = 5, defaultFollowup = 10): PlanFields {
   const get = (header: string) => {
     const regex = new RegExp(`##\\s*${header}[\\s\\S]*?\\n([\\s\\S]*?)(?=\\n##|$)`, 'i')
@@ -45,6 +47,26 @@ function parsePlan(text: string, defaultNew = 5, defaultFollowup = 10): PlanFiel
   }
 }
 
+// ── Building plan parser ──────────────────────────────────────────────────────
+
+function parseBuildingPlan(text: string): PlanFields {
+  const get = (header: string) => {
+    const regex = new RegExp(`##\\s*${header}[\\s\\S]*?\\n([\\s\\S]*?)(?=\\n##|$)`, 'i')
+    const match = text.match(regex)
+    return match ? match[1].trim() : ''
+  }
+  return {
+    priorities: get('Focus Areas'),
+    experiment: get('Key Questions'),
+    expected_outcomes: get('Deliverables by Friday'),
+    messaging_angle: get('Inputs Needed'),
+    target_segment: get('Next Week Preview'),
+    daily_new_contacts: 0,
+    daily_followups: 0,
+    channel_focus: '',
+  }
+}
+
 const ta = 'w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-200 resize-none bg-white'
 const inp = 'w-full text-sm border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-200 bg-white'
 
@@ -61,6 +83,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 export default function MondayPlanPage() {
   const { id } = useParams<{ id: string }>()
   const [campaign, setCampaign] = useState<any>(null)
+  const [phase, setPhase] = useState<'building' | 'executing'>('building')
   const [lastReview, setLastReview] = useState<any>(null)
   const [existingId, setExistingId] = useState<string | null>(null)
   const [plan, setPlan] = useState<PlanFields>({
@@ -85,7 +108,7 @@ export default function MondayPlanPage() {
   useEffect(() => {
     async function load() {
       const [campRes, planRes, reviewRes] = await Promise.all([
-        supabase.from('campaigns').select('name, goal, daily_new_contacts, daily_followups').eq('id', id).single(),
+        supabase.from('campaigns').select('name, goal, daily_new_contacts, daily_followups, wizard_data').eq('id', id).single(),
         supabase.from('weekly_plans').select('*').eq('campaign_id', id).eq('week_start', weekStart).maybeSingle(),
         supabase.from('weekly_reports').select('recommendations, key_insights, week_start').eq('campaign_id', id).order('week_start', { ascending: false }).limit(1).maybeSingle(),
       ])
@@ -97,7 +120,10 @@ export default function MondayPlanPage() {
         .order('week_start', { ascending: false })
       setPastPlans(pastRes.data || [])
 
-      if (campRes.data) setCampaign(campRes.data)
+      if (campRes.data) {
+        setCampaign(campRes.data)
+        setPhase(campRes.data.wizard_data?.phase || 'building')
+      }
       if (reviewRes.data) setLastReview(reviewRes.data)
       if (planRes.data) {
         setExistingId(planRes.data.id)
@@ -120,7 +146,8 @@ export default function MondayPlanPage() {
     setGenerating(true)
     setStreamText('')
     try {
-      const response = await fetch('/api/generate/monday-plan', {
+      const endpoint = phase === 'building' ? '/api/generate/building-plan' : '/api/generate/monday-plan'
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaign_id: id }),
@@ -134,7 +161,10 @@ export default function MondayPlanPage() {
         full += decoder.decode(value)
         setStreamText(full)
       }
-      setPlan(parsePlan(full, campaign?.daily_new_contacts, campaign?.daily_followups))
+      const parsed = phase === 'building'
+        ? parseBuildingPlan(full)
+        : parsePlan(full, campaign?.daily_new_contacts, campaign?.daily_followups)
+      setPlan(parsed)
       setStreamText('')
     } finally {
       setGenerating(false)
@@ -167,7 +197,16 @@ export default function MondayPlanPage() {
         </Link>
         <div className="flex items-start justify-between mt-2">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Monday Plan</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-bold text-gray-900">Monday Plan</h1>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                phase === 'building'
+                  ? 'bg-violet-100 text-violet-700'
+                  : 'bg-indigo-100 text-indigo-700'
+              }`}>
+                {phase === 'building' ? 'Building' : 'Executing'}
+              </span>
+            </div>
             <p className="text-sm text-gray-400 mt-0.5">{weekLabel}</p>
           </div>
           <button
@@ -191,7 +230,7 @@ export default function MondayPlanPage() {
       {lastReview?.recommendations && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
           <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">
-            From last Friday's review
+            From last Friday&apos;s review
           </p>
           <p className="text-sm text-amber-800">{lastReview.recommendations}</p>
         </div>
@@ -206,108 +245,181 @@ export default function MondayPlanPage() {
       )}
 
       {!generating && (
-        <div className="space-y-5">
-          <Field label="Top 3 Priorities" hint="What must happen this week for it to be a success?">
-            <textarea
-              value={plan.priorities}
-              onChange={e => setPlan(p => ({ ...p, priorities: e.target.value }))}
-              className={ta}
-              rows={4}
-              placeholder={'1. ...\n2. ...\n3. ...'}
-            />
-          </Field>
+        <>
+          {/* ── BUILDING MODE ── */}
+          {phase === 'building' && (
+            <div className="space-y-5">
+              <p className="text-sm text-gray-500">
+                What are you building this week? Set your focus areas and what you&apos;ll deliver by Friday.
+              </p>
 
-          <Field label="Target Segment" hint="Which segment are you focusing on this week and why?">
-            <textarea
-              value={plan.target_segment}
-              onChange={e => setPlan(p => ({ ...p, target_segment: e.target.value }))}
-              className={ta}
-              rows={2}
-            />
-          </Field>
+              <Field
+                label="Focus Areas"
+                hint="Which Strategy sections are you working on? What does 'done' look like for each?"
+              >
+                <textarea
+                  value={plan.priorities}
+                  onChange={e => setPlan(p => ({ ...p, priorities: e.target.value }))}
+                  className={ta}
+                  rows={4}
+                  placeholder={'e.g. Complete ICP definition + Segment prioritisation\nFinish pain mapping for Head of Partnerships persona'}
+                />
+              </Field>
 
-          <Field label="Experiment" hint="One clear, testable hypothesis. What are you testing and what do you expect to learn?">
-            <textarea
-              value={plan.experiment}
-              onChange={e => setPlan(p => ({ ...p, experiment: e.target.value }))}
-              className={ta}
-              rows={2}
-            />
-          </Field>
+              <Field
+                label="Key Questions to Answer"
+                hint="What specific things do you need to figure out or decide this week?"
+              >
+                <textarea
+                  value={plan.experiment}
+                  onChange={e => setPlan(p => ({ ...p, experiment: e.target.value }))}
+                  className={ta}
+                  rows={3}
+                  placeholder={'e.g. Which 2 segments should we prioritise first?'}
+                />
+              </Field>
 
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="New contacts / day">
-              <input
-                type="number"
-                min={1}
-                value={plan.daily_new_contacts}
-                onChange={e => setPlan(p => ({ ...p, daily_new_contacts: Number(e.target.value) }))}
-                className={inp}
-              />
-            </Field>
-            <Field label="Follow-ups / day">
-              <input
-                type="number"
-                min={1}
-                value={plan.daily_followups}
-                onChange={e => setPlan(p => ({ ...p, daily_followups: Number(e.target.value) }))}
-                className={inp}
-              />
-            </Field>
-            <Field label="Channel focus">
-              <input
-                type="text"
-                value={plan.channel_focus}
-                onChange={e => setPlan(p => ({ ...p, channel_focus: e.target.value }))}
-                className={inp}
-                placeholder="e.g. LinkedIn primary"
-              />
-            </Field>
-          </div>
+              <Field
+                label="Deliverables by Friday"
+                hint="Concrete outputs that will exist Friday and don't exist today."
+              >
+                <textarea
+                  value={plan.expected_outcomes}
+                  onChange={e => setPlan(p => ({ ...p, expected_outcomes: e.target.value }))}
+                  className={ta}
+                  rows={3}
+                  placeholder={'e.g. • Completed ICP doc\n• 2 segments with personas\n• 3 pain points per persona'}
+                />
+              </Field>
 
-          <Field
-            label="Messaging Angle"
-            hint="Specific angle tied to this week's segment and pain — not generic."
-          >
-            <textarea
-              value={plan.messaging_angle}
-              onChange={e => setPlan(p => ({ ...p, messaging_angle: e.target.value }))}
-              className={ta}
-              rows={3}
-            />
-          </Field>
+              <Field
+                label="Inputs Needed"
+                hint="What do you need from Shikenso's team, their tools, or external research?"
+              >
+                <textarea
+                  value={plan.messaging_angle}
+                  onChange={e => setPlan(p => ({ ...p, messaging_angle: e.target.value }))}
+                  className={ta}
+                  rows={2}
+                  placeholder={'e.g. Customer call transcripts, HubSpot deal data'}
+                />
+              </Field>
 
-          <Field label="Expected Outcomes" hint="What does success look like by Friday? Be specific with numbers.">
-            <textarea
-              value={plan.expected_outcomes}
-              onChange={e => setPlan(p => ({ ...p, expected_outcomes: e.target.value }))}
-              className={ta}
-              rows={2}
-            />
-          </Field>
+              <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="bg-gray-900 text-white text-sm px-5 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Plan'}
+                </button>
+                <Link
+                  href={`/campaigns/${id}/review`}
+                  className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
+                >
+                  Friday Review →
+                </Link>
+              </div>
+            </div>
+          )}
 
-          <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-            <button
-              onClick={save}
-              disabled={saving}
-              className="bg-gray-900 text-white text-sm px-5 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Plan'}
-            </button>
-            <Link
-              href={`/campaigns/${id}/execution`}
-              className="text-sm text-indigo-600 hover:underline"
-            >
-              → Start executing
-            </Link>
-            <Link
-              href={`/campaigns/${id}/review`}
-              className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
-            >
-              Friday Review →
-            </Link>
-          </div>
-        </div>
+          {/* ── EXECUTING MODE ── */}
+          {phase === 'executing' && (
+            <div className="space-y-5">
+              <Field label="Top 3 Priorities" hint="What must happen this week for it to be a success?">
+                <textarea
+                  value={plan.priorities}
+                  onChange={e => setPlan(p => ({ ...p, priorities: e.target.value }))}
+                  className={ta}
+                  rows={4}
+                  placeholder={'1. ...\n2. ...\n3. ...'}
+                />
+              </Field>
+
+              <Field label="Target Segment" hint="Which segment are you focusing on this week and why?">
+                <textarea
+                  value={plan.target_segment}
+                  onChange={e => setPlan(p => ({ ...p, target_segment: e.target.value }))}
+                  className={ta}
+                  rows={2}
+                />
+              </Field>
+
+              <Field label="Experiment" hint="One clear, testable hypothesis. What are you testing and what do you expect to learn?">
+                <textarea
+                  value={plan.experiment}
+                  onChange={e => setPlan(p => ({ ...p, experiment: e.target.value }))}
+                  className={ta}
+                  rows={2}
+                />
+              </Field>
+
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="New contacts / day">
+                  <input
+                    type="number"
+                    min={1}
+                    value={plan.daily_new_contacts}
+                    onChange={e => setPlan(p => ({ ...p, daily_new_contacts: Number(e.target.value) }))}
+                    className={inp}
+                  />
+                </Field>
+                <Field label="Follow-ups / day">
+                  <input
+                    type="number"
+                    min={1}
+                    value={plan.daily_followups}
+                    onChange={e => setPlan(p => ({ ...p, daily_followups: Number(e.target.value) }))}
+                    className={inp}
+                  />
+                </Field>
+                <Field label="Channel focus">
+                  <input
+                    type="text"
+                    value={plan.channel_focus}
+                    onChange={e => setPlan(p => ({ ...p, channel_focus: e.target.value }))}
+                    className={inp}
+                    placeholder="e.g. LinkedIn primary"
+                  />
+                </Field>
+              </div>
+
+              <Field label="Messaging Angle" hint="Specific angle tied to this week's segment and pain — not generic.">
+                <textarea
+                  value={plan.messaging_angle}
+                  onChange={e => setPlan(p => ({ ...p, messaging_angle: e.target.value }))}
+                  className={ta}
+                  rows={3}
+                />
+              </Field>
+
+              <Field label="Expected Outcomes" hint="What does success look like by Friday? Be specific with numbers.">
+                <textarea
+                  value={plan.expected_outcomes}
+                  onChange={e => setPlan(p => ({ ...p, expected_outcomes: e.target.value }))}
+                  className={ta}
+                  rows={2}
+                />
+              </Field>
+
+              <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
+                <button
+                  onClick={save}
+                  disabled={saving}
+                  className="bg-gray-900 text-white text-sm px-5 py-2 rounded-md hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Plan'}
+                </button>
+                <Link
+                  href={`/campaigns/${id}/review`}
+                  className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
+                >
+                  Friday Review →
+                </Link>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Past plans */}
@@ -354,7 +466,7 @@ function PastPlanCard({ plan }: { plan: any }) {
         <div className="border-t border-gray-100 px-4 py-3 space-y-3 text-sm">
           {priorities.length > 0 && (
             <div>
-              <p className="text-xs text-gray-400 mb-1">Priorities</p>
+              <p className="text-xs text-gray-400 mb-1">Priorities / Focus Areas</p>
               <ol className="space-y-0.5">
                 {priorities.map((p: string, i: number) => (
                   <li key={i} className="flex gap-2 text-gray-700">
@@ -364,22 +476,16 @@ function PastPlanCard({ plan }: { plan: any }) {
               </ol>
             </div>
           )}
-          {plan.target_segment && (
+          {plan.expected_outcomes && (
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Focus segment</p>
-              <p className="text-gray-700">{plan.target_segment}</p>
+              <p className="text-xs text-gray-400 mb-0.5">Deliverables / Expected outcomes</p>
+              <p className="text-gray-700">{plan.expected_outcomes}</p>
             </div>
           )}
           {plan.experiment && (
             <div>
-              <p className="text-xs text-gray-400 mb-0.5">Experiment</p>
+              <p className="text-xs text-gray-400 mb-0.5">Key questions / Experiment</p>
               <p className="text-gray-700">{plan.experiment}</p>
-            </div>
-          )}
-          {plan.expected_outcomes && (
-            <div>
-              <p className="text-xs text-gray-400 mb-0.5">Expected outcomes</p>
-              <p className="text-gray-700">{plan.expected_outcomes}</p>
             </div>
           )}
         </div>
