@@ -1,0 +1,121 @@
+import { createClient } from '@supabase/supabase-js'
+
+function getWeekStart() {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  d.setDate(diff)
+  return d.toISOString().split('T')[0]
+}
+
+export default async function SharePlanPage({ params }: { params: { id: string } }) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const weekStart = getWeekStart()
+
+  const [campRes, planRes] = await Promise.all([
+    supabase.from('campaigns').select('name, goal').eq('id', params.id).single(),
+    supabase.from('weekly_plans').select('*').eq('campaign_id', params.id).eq('week_start', weekStart).maybeSingle(),
+  ])
+
+  const campaign = campRes.data
+  const plan = planRes.data
+
+  const weekLabel = new Date(weekStart + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+
+  const isBuilding = plan && !plan.target_segment && !plan.daily_new_contacts
+
+  if (!campaign) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">Campaign not found.</div>
+  }
+
+  const Section = ({ label, value }: { label: string; value?: string | null }) => {
+    if (!value?.trim()) return null
+    return (
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">{label}</h2>
+        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{value}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-widest">GrowthLab</span>
+            <span className="text-gray-200">·</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              isBuilding ? 'bg-violet-100 text-violet-600' : 'bg-indigo-100 text-indigo-600'
+            }`}>
+              {isBuilding ? 'Building Phase' : 'Execution Phase'}
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">
+            {isBuilding ? 'Weekly Building Plan' : 'Monday Plan'}
+          </h1>
+          <p className="text-sm text-gray-400">{weekLabel}</p>
+          <p className="text-sm text-gray-500 mt-1 font-medium">{campaign.name}</p>
+          {campaign.goal && <p className="text-xs text-gray-400 mt-0.5">{campaign.goal}</p>}
+        </div>
+
+        {!plan ? (
+          <p className="text-gray-400 text-sm italic">No plan set for this week yet.</p>
+        ) : isBuilding ? (
+          <>
+            <Section label="Focus Areas" value={plan.priorities} />
+            <Section label="Key Questions to Answer" value={plan.experiment} />
+            <Section label="Deliverables by Friday" value={plan.expected_outcomes} />
+            <Section label="Inputs Needed" value={plan.messaging_angle} />
+          </>
+        ) : (
+          <>
+            <Section label="Top 3 Priorities" value={plan.priorities} />
+            <Section label="Target Segment" value={plan.target_segment} />
+            <Section label="Experiment" value={plan.experiment} />
+
+            {(plan.daily_new_contacts || plan.daily_followups || plan.channel_focus) && (
+              <div className="mb-6">
+                <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">Daily Targets</h2>
+                <div className="flex gap-6 text-sm">
+                  {plan.daily_new_contacts > 0 && (
+                    <div>
+                      <span className="font-semibold text-gray-900">{plan.daily_new_contacts}</span>
+                      <span className="text-gray-400 ml-1">new contacts/day</span>
+                    </div>
+                  )}
+                  {plan.daily_followups > 0 && (
+                    <div>
+                      <span className="font-semibold text-gray-900">{plan.daily_followups}</span>
+                      <span className="text-gray-400 ml-1">follow-ups/day</span>
+                    </div>
+                  )}
+                  {plan.channel_focus && (
+                    <div>
+                      <span className="text-gray-400">Channel:</span>
+                      <span className="text-gray-700 ml-1">{plan.channel_focus}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <Section label="Messaging Angle" value={plan.messaging_angle} />
+            <Section label="Expected Outcomes by Friday" value={plan.expected_outcomes} />
+          </>
+        )}
+
+        <div className="mt-12 pt-6 border-t border-gray-100 text-xs text-gray-300 text-center">
+          Generated by GrowthLab · {weekLabel}
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -123,6 +123,7 @@ export interface WeeklyReport {
 }
 
 export const PLAYBOOK_SECTIONS = [
+  'Strategic Decisions',
   'What Worked',
   'Hook Variations',
   'Segment Insights',

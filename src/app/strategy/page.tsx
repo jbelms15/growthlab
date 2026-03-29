@@ -714,6 +714,16 @@ function SequencesPhase({ data, onChange }: { data: SequencesData; onChange: (d:
                   </div>
                   <input    value={step.action}  onChange={e => upd(step.id, { action:  e.target.value })}        placeholder="Action (e.g. LinkedIn connection request, Follow-up email — different angle)" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none" />
                   <textarea value={step.content} onChange={e => upd(step.id, { content: e.target.value })} rows={3} placeholder="Content / script / notes for this step..."                                      className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none resize-none" />
+                  <div className="grid grid-cols-2 gap-2 pt-1 border-t border-gray-100">
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">Reply rate (from HubSpot)</label>
+                      <input value={step.reply_rate || ''} onChange={e => upd(step.id, { reply_rate: e.target.value })} placeholder="e.g. 12%" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-400 mb-1 block">Performance notes</label>
+                      <input value={step.performance_notes || ''} onChange={e => upd(step.id, { performance_notes: e.target.value })} placeholder="What worked / didn't work" className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none" />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

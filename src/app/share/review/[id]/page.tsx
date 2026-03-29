@@ -1,0 +1,117 @@
+import { createClient } from '@supabase/supabase-js'
+
+function getWeekStart() {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  d.setDate(diff)
+  return d.toISOString().split('T')[0]
+}
+
+export default async function ShareReviewPage({ params }: { params: { id: string } }) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const weekStart = getWeekStart()
+
+  const [campRes, reportRes] = await Promise.all([
+    supabase.from('campaigns').select('name, goal, wizard_data').eq('id', params.id).single(),
+    supabase
+      .from('weekly_reports')
+      .select('*')
+      .eq('campaign_id', params.id)
+      .eq('week_start', weekStart)
+      .maybeSingle(),
+  ])
+
+  const campaign = campRes.data
+  const report = reportRes.data
+  const phase = campaign?.wizard_data?.phase || 'building'
+
+  const weekLabel = new Date(weekStart + 'T12:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
+  })
+
+  if (!campaign) {
+    return <div className="min-h-screen flex items-center justify-center text-gray-400">Campaign not found.</div>
+  }
+
+  const Section = ({ label, value, accent }: { label: string; value?: string | null; accent?: boolean }) => {
+    if (!value?.trim()) return null
+    return (
+      <div className="mb-6">
+        <h2 className={`text-xs font-semibold uppercase tracking-widest mb-2 ${accent ? 'text-indigo-400' : 'text-gray-400'}`}>
+          {label}
+        </h2>
+        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-wrap">{value}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="mb-10">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs font-medium text-gray-400 uppercase tracking-widest">GrowthLab</span>
+            <span className="text-gray-200">·</span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              phase === 'building' ? 'bg-violet-100 text-violet-600' : 'bg-indigo-100 text-indigo-600'
+            }`}>
+              {phase === 'building' ? 'Building Phase' : 'Execution Phase'}
+            </span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Friday Review</h1>
+          <p className="text-sm text-gray-400">{weekLabel}</p>
+          <p className="text-sm text-gray-500 mt-1 font-medium">{campaign.name}</p>
+          {campaign.goal && <p className="text-xs text-gray-400 mt-0.5">{campaign.goal}</p>}
+        </div>
+
+        {!report ? (
+          <p className="text-gray-400 text-sm italic">No review saved for this week yet.</p>
+        ) : phase === 'building' ? (
+          <>
+            <Section label="What Was Completed" value={report.what_worked} />
+            <Section label="Key Decisions Made" value={report.performance_analysis} />
+            <Section label="Open Questions" value={report.key_insights} />
+            <Section label="System Readiness" value={report.risks} />
+            <Section label="Next Week Priorities" value={report.recommendations} />
+          </>
+        ) : (
+          <>
+            {/* Metrics */}
+            {(report.companies_contacted > 0 || report.meetings > 0 || report.sqls > 0) && (
+              <div className="mb-8 grid grid-cols-3 gap-4">
+                {[
+                  { label: 'Touchpoints', value: report.companies_contacted },
+                  { label: 'Replies', value: report.replies },
+                  { label: 'Meetings', value: report.meetings },
+                  { label: 'SQLs', value: report.sqls || 0, accent: true },
+                  { label: 'New companies', value: report.qualitative_input?.newCompanies },
+                ].filter(m => m.value != null && m.value !== 0).map(m => (
+                  <div key={m.label} className={`rounded-xl p-3 text-center ${(m as any).accent ? 'bg-indigo-50' : 'bg-gray-50'}`}>
+                    <p className={`text-2xl font-bold ${(m as any).accent ? 'text-indigo-700' : 'text-gray-900'}`}>{m.value}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{m.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <Section label="Weekly Summary" value={report.what_worked} />
+            <Section label="Performance Analysis" value={report.performance_analysis} />
+            <Section label="Key Insights" value={report.key_insights} />
+            <Section label="Risks & Issues" value={report.risks} />
+            <Section label="Recommendations for Next Week" value={report.recommendations} />
+          </>
+        )}
+
+        <div className="mt-12 pt-6 border-t border-gray-100 text-xs text-gray-300 text-center">
+          Generated by GrowthLab · {weekLabel}
+        </div>
+      </div>
+    </div>
+  )
+}

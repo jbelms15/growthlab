@@ -121,6 +121,8 @@ export interface SequenceStep {
   channel: string
   action: string
   content: string
+  reply_rate?: string
+  performance_notes?: string
 }
 
 export interface SequencesData {

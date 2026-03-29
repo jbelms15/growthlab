@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
   const weekStart = getWeekStart()
 
-  const [campRes, workspaceRes, lastReviewRes, activeRes] = await Promise.all([
+  const [campRes, workspaceRes, lastReviewRes, activeRes, playbookRes] = await Promise.all([
     supabase.from('campaigns').select('*').eq('id', campaign_id).single(),
     supabase.from('client_workspaces').select('data').eq('client_name', 'Shikenso').maybeSingle(),
     supabase
@@ -36,6 +36,13 @@ export async function POST(req: Request) {
       .select('*', { count: 'exact', head: true })
       .eq('campaign_id', campaign_id)
       .in('status', ['prospect', 'active']),
+    supabase
+      .from('playbook_entries')
+      .select('section, title, content')
+      .eq('campaign_id', campaign_id)
+      .in('section', ['What Worked', 'Strategic Decisions'])
+      .order('created_at', { ascending: false })
+      .limit(6),
   ])
 
   const { data: weekTps } = await supabase
@@ -124,6 +131,13 @@ export async function POST(req: Request) {
     ? sequences.map(s => `Day ${s.day} (${s.channel}): ${s.action}`).join('\n')
     : 'Not defined'
 
+  const playbookEntries = playbookRes.data || []
+  const playbookText = playbookEntries.length
+    ? playbookEntries
+        .map(e => `[${e.section}] ${e.title}${e.content ? ': ' + e.content.slice(0, 200) : ''}`)
+        .join('\n')
+    : 'No playbook entries yet.'
+
   const lastReviewText = lastReview
     ? `Week of ${lastReview.week_start}:
 - Touchpoints: ${lastReview.companies_contacted} | Replies: ${lastReview.replies} | Meetings: ${lastReview.meetings} | SQLs: ${lastReview.sqls ?? 0}
@@ -162,6 +176,9 @@ CURRENT STATUS:
 - Meetings this week: ${tps.filter((t: any) => t.status === 'meeting').length}
 
 NORTH STAR: 6 SQLs/month (SQL = meeting that passes qualification). Meetings are a leading indicator — SQLs are the metric that matters.
+
+PLAYBOOK — WHAT'S WORKED / STRATEGIC DECISIONS:
+${playbookText}
 
 LAST FRIDAY'S REVIEW:
 ${lastReviewText}

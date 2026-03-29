@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { PLAYBOOK_SECTIONS, type PlaybookEntry, type PlaybookSection } from '@/lib/types'
 
 const sectionColors: Record<string, string> = {
+  'Strategic Decisions': 'bg-amber-100 text-amber-700',
   'What Worked': 'bg-green-100 text-green-700',
   'Hook Variations': 'bg-blue-100 text-blue-700',
   'Segment Insights': 'bg-purple-100 text-purple-700',

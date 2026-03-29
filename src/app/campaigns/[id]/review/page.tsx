@@ -227,6 +227,20 @@ export default function FridayReviewPage() {
       const { data } = await supabase.from('weekly_reports').insert(payload).select().single()
       if (data) setExistingId(data.id)
     }
+
+    // Auto-push strategic decisions from building reviews to Playbook
+    if (phase === 'building' && review.performance_analysis.trim()) {
+      const title = `Week of ${weekStart}: Key Decisions`
+      const content = [
+        review.performance_analysis,
+        buildingQual.decisions ? `\nDecisions made:\n${buildingQual.decisions}` : '',
+      ].filter(Boolean).join('')
+      await supabase.from('playbook_entries').upsert(
+        { campaign_id: id, section: 'Strategic Decisions', title, content },
+        { onConflict: 'campaign_id,title' }
+      )
+    }
+
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -438,6 +452,7 @@ export default function FridayReviewPage() {
                 >
                   {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Review'}
                 </button>
+                <ShareButton campaignId={id} type="review" />
                 <button
                   onClick={() => { setBuildingStep('input'); setStreamText('') }}
                   className="text-sm text-gray-400 hover:text-gray-600"
@@ -481,9 +496,21 @@ export default function FridayReviewPage() {
           {/* Step 1: Week Data */}
           {step === 'data' && weekData && (
             <div className="space-y-6">
-              <p className="text-sm text-gray-500">
-                Enter your numbers for the week. Pull from HubSpot if that&apos;s where outreach ran.
-              </p>
+              <div className="space-y-1">
+                <p className="text-sm text-gray-500">Enter your numbers for the week.</p>
+                <details className="group">
+                  <summary className="text-xs text-indigo-500 hover:text-indigo-700 cursor-pointer list-none">
+                    Where to find these in HubSpot ▸
+                  </summary>
+                  <div className="mt-2 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2.5 space-y-1">
+                    <p><span className="font-medium text-gray-600">Touchpoints sent</span> — Activities → filter by this week, count Emails + LinkedIn tasks</p>
+                    <p><span className="font-medium text-gray-600">Replies</span> — Conversations → Inbox, filter by date; or Emails → Replies</p>
+                    <p><span className="font-medium text-gray-600">Meetings booked</span> — Contacts or Deals → filter by Meeting booked this week</p>
+                    <p><span className="font-medium text-gray-600">SQLs</span> — Deals → filter by stage "SQL" / "Qualified", moved this week</p>
+                    <p><span className="font-medium text-gray-600">New companies</span> — Companies → filter by Created date this week</p>
+                  </div>
+                </details>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 {[
@@ -665,6 +692,7 @@ export default function FridayReviewPage() {
                 >
                   {pushing ? 'Pushing...' : pushed ? '✓ Added to Playbook' : '→ Push to Playbook'}
                 </button>
+                <ShareButton campaignId={id} type="review" />
                 <button
                   onClick={() => { setStep('input'); setStreamText('') }}
                   className="text-sm text-gray-400 hover:text-gray-600"
@@ -702,6 +730,21 @@ export default function FridayReviewPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function ShareButton({ campaignId, type }: { campaignId: string; type: 'plan' | 'review' }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    const url = `${window.location.origin}/share/${type}/${campaignId}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button onClick={copy} className="text-sm text-gray-400 hover:text-gray-600">
+      {copied ? '✓ Link copied' : '↗ Share'}
+    </button>
   )
 }
 

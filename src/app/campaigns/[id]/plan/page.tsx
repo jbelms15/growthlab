@@ -313,6 +313,7 @@ export default function MondayPlanPage() {
                 >
                   {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Plan'}
                 </button>
+                <ShareButton campaignId={id} type="plan" />
                 <Link
                   href={`/campaigns/${id}/review`}
                   className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
@@ -410,6 +411,7 @@ export default function MondayPlanPage() {
                 >
                   {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save Plan'}
                 </button>
+                <ShareButton campaignId={id} type="plan" />
                 <Link
                   href={`/campaigns/${id}/review`}
                   className="text-sm text-gray-400 hover:text-gray-600 ml-auto"
@@ -441,6 +443,21 @@ export default function MondayPlanPage() {
         </div>
       )}
     </div>
+  )
+}
+
+function ShareButton({ campaignId, type }: { campaignId: string; type: 'plan' | 'review' }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () => {
+    const url = `${window.location.origin}/share/${type}/${campaignId}`
+    navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+  return (
+    <button onClick={copy} className="text-sm text-gray-400 hover:text-gray-600">
+      {copied ? '✓ Link copied' : '↗ Share'}
+    </button>
   )
 }
 
